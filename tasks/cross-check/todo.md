@@ -18,4 +18,4 @@
   - 本仓库工作区干净、最新提交仍是本会话的，没有被插件写入；输出目录无残留的记录文件或材料目录。
   - 抽查一条 confirmed：路径不是 UTF-8 时 `facts_git.commit_info` 严格解码（facts_git.py:L86），`brief_facts.py` 只接三类异常——用 git 索引造出这种路径实测，`--range` 抛 `UnicodeDecodeError` 堆栈、退出 1，违反 brief-facts 的 AC8；成立。这批针对 brief-facts 代码的发现留到最终验收由用户定怎么处理。
 - [x] Checkpoint 3（gate）：最终验收与发版授权 — 2026-11-19 用户「按推荐全部同意」，即：验收通过（同时批准修订后的 Spec，预计花费改为约 10～25 万）；1 A 建远端 `haigeerlab/delivery-brief`（公开）；2 A 推送 `main`；3 A 打 `v0.1.0` 并推送标签；4 A 先发 0.1.0、README 列已知问题、之后用 add-module 插修复模块。拟回告原文同意发送。
-- [ ] 发版（按 Checkpoint 3 的授权）
+- [x] 发版（按 Checkpoint 3 的授权）— 2026-11-19 `gh repo create haigeerlab/delivery-brief --public` 并设为 origin（读回 PUBLIC）；在验收提交 `e93e426` 上打附注标签 `v0.1.0`；推送 `main` 与标签，读回远端 `refs/heads/main` 与 `refs/tags/v0.1.0^{}` 都是 `e93e42607850`；标签上的 README 页面 HTTP 200。本机安装仍以本仓库目录为来源（未改）。回告 ecosystem-lead 见本提交之后的消息。
