@@ -41,3 +41,4 @@
 
 <!-- spec-guard: milestone M1 confirmed brief-facts, module-brief, cross-check -->
 <!-- spec-guard: milestone M2 confirmed ui-screenshots -->
+<!-- spec-guard: milestone M3 confirmed milestone-brief -->
