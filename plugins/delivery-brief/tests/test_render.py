@@ -327,6 +327,15 @@ class MilestoneRenderTest(MilestoneCheckCase):
         facts["range"]["inProgress"] = True
         self.assertIn("进行中", self.render_milestone(facts).split('<nav class="toc">')[0])
 
+    def test_footer_names_the_inferred_source_and_root(self):
+        footer = self.render_milestone().split("<footer>")[1]
+        self.assertIn("按 spec-guard 文件约定推断", footer)
+        self.assertNotIn("（指定）", footer)
+        facts = self.load()
+        facts["range"]["base"] = None
+        footer = self.render_milestone(facts).split("<footer>")[1]
+        self.assertIn("<code>（根）..%s</code>" % facts["range"]["head"][:8], footer)
+
     def test_sections_and_toc(self):
         html = self.render_milestone()
         for number, title in enumerate(("这一站做成了什么", "代码地图", "沿典型用法走一遍", "跨模块约定", "各模块讲解", "需要你判断的"), 1):

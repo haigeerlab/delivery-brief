@@ -449,8 +449,8 @@ class Renderer:
         rng = self.facts["range"]
         footer = ("<footer>讲解是代码的摘要，以链接指向的代码为准。范围 <code>%s..%s</code>（%s）；链接：%s。"
                   "页头与附录的数字由 delivery-brief 从 git 直接生成。%s</footer>"
-                  % (esc((rng["base"] or "")[:8]), esc(rng["head"][:8]),
-                     "按 spec-guard 文件约定推断" if rng["source"] == "inferred-spec-guard" else "指定",
+                  % (esc(rng["base"][:8] if rng["base"] else "（根）"), esc(rng["head"][:8]),
+                     "按 spec-guard 文件约定推断" if rng["source"].startswith("inferred-spec-guard") else "指定",
                      esc(self.links["reason"]), self.cross_check_footer()))
         title_text = md.plain(title)
         return ("<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n"
