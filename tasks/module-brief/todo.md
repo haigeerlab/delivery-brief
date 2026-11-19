@@ -24,7 +24,7 @@
 - [x] Task 9：合并命令步骤 — `commands/brief.md`：开头加「少跑几轮」说明；第 1 步改为一个准备块（读规则、跑 facts、删同名旧产物、记项目状态、打印 facts，退出码非 0 时打印并删空 facts）；第 3 步加「分批读」（每批一次调用读多个、输出约 3 万字符以内）与「写完当条消息就检查」；截图的导出、装依赖、起服务合为一块，截完在同一条消息里一次看完；收尾截图、渲染、打开、核对项目状态合为第 5 步一块。`test_rules_doc.py` 新增 `FewerTurnsTest` 6 例，实现前全部失败，实现后命令文件测试 20 例全过。
 - [x] Task 10：统计脚本 `dev/run_cost.py` — 从调用命令的那条消息数到下一次调用或会话结束（中途回答停点的用户消息仍算同一次；跳过 `isMeta` 的命令展开），同一条回复拆成多行只算一轮。`dev/test_run_cost.py` 2 例，实现前报错，实现后两个 Python 都过。改前四次：brief-facts 25 轮、交叉核对 22 轮（接在同一会话，首轮上下文 17.4 万）、next-shadcn 提交段 38 轮（缓存读 6196616）、M1 里程碑 25 轮（缓存读 3163957）。
 - [x] Task 11：版本 0.3.2 与 README — `plugin.json` 0.3.2；README 版本记录加 0.3.2（并建议在新会话里跑）；`claude plugin validate .` 通过；全部 170 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各过一次（另有 `dev/` 2 例）。
-- [ ] Checkpoint 4（gate）：本机升级插件
+- [x] Checkpoint 4（gate）：本机升级插件 — 2026-11-20 用户「同意升级」。`claude plugin marketplace update delivery-brief-marketplace` 后已是 0.3.2（`claude plugin update` 报已是最新）；读回：版本 0.3.2、`installPath` 为 `…/delivery-brief/0.3.2`、`gitCommitSha` 为 `86294c3`；缓存与仓库 `plugins/delivery-brief` 逐文件一致。新开会话或 `/clear` 后加载。
 - [ ] Task 12：重跑两次实测（AC9）
 - [ ] Checkpoint 5（gate）：修订验收与 0.3.2 发版授权
 
