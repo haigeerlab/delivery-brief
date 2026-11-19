@@ -95,6 +95,7 @@ class ScreenshotTest(ShotCase):
         self.assertEqual(code, 0, err)
         record = self.record()
         self.assertEqual(record["baseUrl"], self.base)
+        self.assertEqual(record["origin"], "export")
         self.assertEqual(record["viewport"], [1280, 800])
         self.assertTrue(record["chrome"])
         shots = record["shots"]

@@ -200,3 +200,85 @@ class CrossCheckRenderTest(CheckCase):
         second = re.sub(r"生成于 [0-9: -]+", "", self.render())
         self.assertEqual(first, second)
         self.assertNotIn("交叉核对", first)
+
+
+SHOT_SOURCE = GOOD.replace("## 分层讲改动", "```screenshot 登录页\n/login\n```\n\n```screenshot 看板\n/dash\n```\n\n## 分层讲改动")
+
+
+def shot_record(**changes):
+    record = {"baseUrl": "http://127.0.0.1:5173", "chrome": "/x/Chrome", "viewport": [1280, 800], "origin": "export",
+              "shots": [{"title": "登录页", "path": "/login", "file": "01.png", "status": "ok", "reason": "",
+                         "httpStatus": 200, "finalUrl": "http://127.0.0.1:5173/login"},
+                        {"title": "看板", "path": "/dash", "file": "02.png", "status": "failed",
+                         "reason": "需要登录，未截到", "httpStatus": 200, "finalUrl": "http://127.0.0.1:5173/login"}]}
+    record.update(changes)
+    return record
+
+
+class ScreenshotRenderTest(CheckCase):
+    def run_render(self, source, *extra, record=None, expect=0):
+        src = os.path.join(self.tmp.name, "brief.md")
+        out = os.path.join(self.tmp.name, "brief.html")
+        with open(src, "w", encoding="utf-8") as handle:
+            handle.write(source)
+        args = list(extra)
+        if record is not None:
+            shots_dir = os.path.join(self.tmp.name, "brief.shots")
+            os.makedirs(shots_dir, exist_ok=True)
+            path = os.path.join(shots_dir, "shots.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(record if isinstance(record, str) else json.dumps(record, ensure_ascii=False))
+            args += ["--shots", path]
+        proc = subprocess.run([sys.executable, "-B", str(RENDER), "--facts", self.facts_path, "--source", src,
+                               "--out", out, *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        err = proc.stderr.decode("utf-8")
+        self.assertEqual(proc.returncode, expect, err)
+        self.assertNotIn("Traceback", err)
+        if expect:
+            return err
+        with open(out, encoding="utf-8") as handle:
+            return re.sub(r"生成于 [0-9: -]+", "", handle.read())
+
+    def inventory(self, html):
+        return html.split('id="inventory"')[1].split("<h2")[0]
+
+    def test_ok_and_failed_shots(self):
+        part = self.inventory(self.run_render(SHOT_SOURCE, record=shot_record()))
+        self.assertIn('<img src="brief.shots/01.png" alt="登录页"', part)
+        self.assertIn('width="1280" height="800"', part)
+        self.assertNotIn("loading=", part)
+        self.assertIn("登录页", part)
+        self.assertIn("截图未生成：需要登录，未截到", part)
+        self.assertNotIn("02.png", part)
+
+    def test_appendix_names_the_source(self):
+        appendix = self.run_render(SHOT_SOURCE, record=shot_record()).split('id="appendix"')[1]
+        self.assertIn("截图来源", appendix)
+        self.assertIn("导出", appendix)
+        user = self.run_render(SHOT_SOURCE, record=shot_record(origin="base-url")).split('id="appendix"')[1]
+        self.assertIn("未核对与终点提交一致", user)
+
+    def test_without_record_or_skipped(self):
+        part = self.inventory(self.run_render(SHOT_SOURCE))
+        self.assertEqual(part.count("截图未生成：没有截图"), 2)
+        part = self.inventory(self.run_render(SHOT_SOURCE, "--shots-skipped", "指定了 --no-screenshots"))
+        self.assertEqual(part.count("截图未生成：指定了 --no-screenshots"), 2)
+
+    def test_record_that_does_not_match_the_source(self):
+        record = shot_record()
+        record["shots"][0]["path"] = "/other"
+        part = self.inventory(self.run_render(SHOT_SOURCE, record=record))
+        self.assertIn("截图未生成：截图记录和讲解对不上", part)
+
+    def test_invalid_record_exits_2(self):
+        self.assertIn("shots", self.run_render(SHOT_SOURCE, record={"baseUrl": "x"}, expect=2))
+        bad = shot_record()
+        bad["shots"][1]["status"] = "maybe"
+        self.assertIn("status", self.run_render(SHOT_SOURCE, record=bad, expect=2))
+        self.run_render(SHOT_SOURCE, record="{not json", expect=2)
+
+    def test_brief_without_screenshot_blocks_is_unchanged(self):
+        plain = self.run_render(GOOD)
+        self.assertEqual(plain, self.run_render(GOOD, record=shot_record(shots=[])))
+        self.assertEqual(plain, self.run_render(GOOD, "--shots-skipped", "指定了 --no-screenshots"))
+        self.assertNotIn("截图", plain)

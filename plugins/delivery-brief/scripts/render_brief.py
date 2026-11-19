@@ -128,11 +128,39 @@ def validate_cross_check(record):
             raise CrossCheckError("findings 第 %d 条的 verdict 只能是 %s" % (index, "、".join(VERDICTS)))
 
 
+SHOT_ORIGINS = ("export", "base-url")
+
+
+def validate_shots(record):
+    """Raise ShotsError naming the first field that is missing or wrong (format: take_screenshots.py)."""
+    if not isinstance(record, dict) or not isinstance(record.get("shots"), list):
+        raise ShotsError("截图记录要是一个带 shots 列表的 JSON 对象")
+    for key in ("baseUrl", "origin"):
+        if not isinstance(record.get(key), str):
+            raise ShotsError("截图记录缺少字段 %s" % key)
+    if record["origin"] not in SHOT_ORIGINS:
+        raise ShotsError("origin 只能是 %s" % "、".join(SHOT_ORIGINS))
+    for index, shot in enumerate(record["shots"], 1):
+        for key in ("title", "path", "file", "status", "reason"):
+            if not isinstance(shot, dict) or not isinstance(shot.get(key), str):
+                raise ShotsError("shots 第 %d 条缺少字段 %s" % (index, key))
+        if shot["status"] not in ("ok", "failed"):
+            raise ShotsError("shots 第 %d 条的 status 只能是 ok 或 failed" % index)
+
+
+class ShotsError(ValueError):
+    pass
+
+
 class Renderer:
-    def __init__(self, facts, cross=None):
+    def __init__(self, facts, cross=None, shots=None, shots_href="", shots_skipped=None):
         self.facts = facts
         self.links = facts["links"]
         self.cross = cross
+        self.shots = shots
+        self.shots_href = shots_href
+        self.shots_skipped = shots_skipped
+        self.shot_index = 0
 
     def cite(self, path, start, end):
         label = path if start is None else "%s:%d%s" % (path, start, "" if end == start else "-%d" % end)
@@ -199,6 +227,8 @@ class Renderer:
             if block["lang"] == "mermaid":
                 caption = "<figcaption>%s</figcaption>" % esc(block["info"]) if block["info"] else ""
                 return '<figure>%s<pre class="mermaid">%s</pre></figure>' % (caption, esc(block["text"]))
+            if block["lang"] == "screenshot":
+                return self.screenshot(md.screenshot_blocks([block])[0])
             if block["lang"] == "output" and block["info"]:
                 return ('<div class="output" id="out-%s"><span class="label">实跑输出 %s</span><pre><code>%s</code></pre></div>'
                         % (esc(block["info"]), esc(block["info"]), esc(block["text"])))
@@ -207,6 +237,37 @@ class Renderer:
             inner = "".join(self.block(b) for b in block["blocks"])
             return "<details><summary>%s</summary>%s</details>" % (esc(block["summary"]), inner)
         return '<p class="unsupported">%s</p>' % esc(block["text"])
+
+    def screenshot(self, page):
+        """The n-th screenshot block takes the n-th record entry, which must be for the same path."""
+        index, self.shot_index = self.shot_index, self.shot_index + 1
+        label = "%s（<code>%s</code>）" % (esc(page["title"]), esc(page["path"]))
+        reason = self.shots_skipped or "没有截图"
+        if self.shots is not None and not self.shots_skipped:
+            entries = self.shots["shots"]
+            shot = entries[index] if index < len(entries) else None
+            if shot is None or shot["path"] != page["path"]:
+                reason = "截图记录和讲解对不上（第 %d 张）" % (index + 1)
+            elif shot["status"] == "ok":
+                src = (self.shots_href + "/" if self.shots_href else "") + shot["file"]
+                width, height = (self.shots.get("viewport") or [1280, 800])[:2]
+                return ('<figure><figcaption>%s</figcaption><img src="%s" alt="%s" width="%d" height="%d" '
+                        'style="max-width:100%%;height:auto;border:1px solid var(--line);border-radius:4px"></figure>'
+                        % (label, esc(src), esc(page["title"]), int(width), int(height)))
+            else:
+                reason = shot["reason"] or "截图失败"
+        return '<p class="notice">%s：截图未生成：%s</p>' % (label, esc(reason))
+
+    def shot_source(self):
+        if self.shots is None or not self.shots["shots"]:
+            return ""
+        if self.shots["origin"] == "export":
+            text = "在终点提交 <code>%s</code> 的导出目录里起开发服务器（%s）截取" % (
+                esc(self.facts["range"]["head"][:8]), esc(self.shots["baseUrl"]))
+        else:
+            text = "取自你给的地址 %s，未核对与终点提交一致" % esc(self.shots["baseUrl"])
+        done = sum(1 for shot in self.shots["shots"] if shot["status"] == "ok")
+        return '<p class="why">截图来源：%s；%d 张里成功 %d 张。</p>' % (text, len(self.shots["shots"]), done)
 
     def terms(self, block):
         rows = []
@@ -272,7 +333,7 @@ class Renderer:
                 '<details><summary>提交表（%d 个，不含合并提交）</summary><div class="scroll"><table>'
                 '<tr><th>提交</th><th>说明</th><th>日期</th></tr>%s</table></div></details>'
                 % (totals["files"], totals["added"], totals["deleted"], files, len(self.facts["commits"]), commits)
-                + self.cross_check_record())
+                + self.cross_check_record() + self.shot_source())
 
     def cross_check_record(self):
         if not self.cross:
@@ -346,6 +407,8 @@ def main(argv=None):
     parser.add_argument("--source", required=True)
     parser.add_argument("--out", required=True)
     parser.add_argument("--cross-check", dest="cross_check")
+    parser.add_argument("--shots", help="take_screenshots.py 写的 shots.json")
+    parser.add_argument("--shots-skipped", dest="shots_skipped", help="没截图的原因，如「指定了 --no-screenshots」")
     args = parser.parse_args(argv)
     try:
         with open(args.facts, encoding="utf-8") as handle:
@@ -364,7 +427,19 @@ def main(argv=None):
         except (OSError, ValueError) as error:
             print("核对记录不能用：%s" % error, file=sys.stderr)
             return 2
-    page = Renderer(facts, cross).page(blocks)
+    shots, href = None, ""
+    if args.shots:
+        try:
+            with open(args.shots, encoding="utf-8") as handle:
+                shots = json.load(handle)
+            validate_shots(shots)
+        except (OSError, ValueError) as error:
+            print("截图记录不能用：%s" % error, file=sys.stderr)
+            return 2
+        href = os.path.relpath(os.path.dirname(os.path.abspath(args.shots)),
+                               os.path.dirname(os.path.abspath(args.out))).replace(os.sep, "/")
+        href = "" if href == "." else href
+    page = Renderer(facts, cross, shots, href, args.shots_skipped).page(blocks)
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as handle:
         handle.write(page)

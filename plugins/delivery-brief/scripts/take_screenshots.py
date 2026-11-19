@@ -4,7 +4,7 @@
 Waits until --base-url answers, then takes one viewport PNG per block (01.png, 02.png, ...) into --out and writes
 --out/shots.json:
 
-  {"baseUrl", "chrome", "viewport": [w, h],
+  {"baseUrl", "origin": "export"|"base-url", "chrome", "viewport": [w, h],
    "shots": [{"title", "path", "file", "status": "ok"|"failed", "reason", "httpStatus", "finalUrl"}]}
 
 A failure is recorded per shot and never stops the run: exit 0 whenever shots.json is written, 2 for usage errors.
@@ -142,7 +142,7 @@ def run(args):
                 elif status >= 400:
                     shot["reason"] = "页面返回 HTTP %d" % status
         shots.append(shot)
-    record = {"baseUrl": base, "chrome": chrome, "viewport": [args.width, args.height], "shots": shots}
+    record = {"baseUrl": base, "origin": args.origin, "chrome": chrome, "viewport": [args.width, args.height], "shots": shots}
     with open(os.path.join(args.out, "shots.json"), "w", encoding="utf-8") as handle:
         json.dump(record, handle, ensure_ascii=False, indent=1)
     return record
@@ -153,6 +153,8 @@ def main(argv=None):
     parser.add_argument("--source", required=True, help="讲解源文件（.md）")
     parser.add_argument("--base-url", required=True, help="开发服务器地址，如 http://127.0.0.1:5173")
     parser.add_argument("--out", required=True, help="截图目录，如 <名字>.shots")
+    parser.add_argument("--origin", choices=("export", "base-url"), default="export",
+                        help="服务从哪来：export 为命令在终点提交的导出目录里起的，base-url 为用户给的地址")
     parser.add_argument("--chrome", help="Chrome 可执行文件；缺省依次找 DELIVERY_BRIEF_CHROME、本机安装、PATH")
     parser.add_argument("--width", type=int, default=1280)
     parser.add_argument("--height", type=int, default=800)
