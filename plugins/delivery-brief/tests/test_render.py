@@ -282,3 +282,73 @@ class ScreenshotRenderTest(CheckCase):
         self.assertEqual(plain, self.run_render(GOOD, record=shot_record(shots=[])))
         self.assertEqual(plain, self.run_render(GOOD, "--shots-skipped", "指定了 --no-screenshots"))
         self.assertNotIn("截图", plain)
+
+
+from test_check import MILESTONE_GOOD, MilestoneCheckCase  # noqa: E402
+
+
+class MilestoneRenderTest(MilestoneCheckCase):
+    def render_milestone(self, facts=None):
+        if facts is not None:
+            with open(self.facts_path, "w", encoding="utf-8") as handle:
+                json.dump(facts, handle, ensure_ascii=False)
+        out_dir = os.path.join(self.tmp.name, "out")
+        os.makedirs(out_dir, exist_ok=True)
+        src = os.path.join(out_dir, "milestone-M1.md")
+        out = os.path.join(out_dir, "milestone-M1.html")
+        with open(src, "w", encoding="utf-8") as handle:
+            handle.write(MILESTONE_GOOD)
+        proc = subprocess.run([sys.executable, "-B", str(RENDER), "--facts", self.facts_path, "--source", src, "--out", out],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(proc.returncode, 0, proc.stderr.decode("utf-8"))
+        with open(out, encoding="utf-8") as handle:
+            return handle.read()
+
+    def load(self):
+        with open(self.facts_path, encoding="utf-8") as handle:
+            return json.load(handle)
+
+    def section(self, html, anchor):
+        return html.split('id="%s"' % anchor)[1].split("<h2")[0]
+
+    def test_header(self):
+        header = self.render_milestone().split('<nav class="toc">')[0]
+        self.assertIn("里程碑讲解", header)
+        self.assertIn("M1", header)
+        self.assertIn("U1 跑一次", header)
+        self.assertIn("2 个模块", header)
+        self.assertIn("还没确认", header)
+        facts = self.load()
+        facts["milestone"]["confirmed"] = True
+        self.assertIn("已确认", self.render_milestone(facts).split('<nav class="toc">')[0])
+        facts["range"]["inProgress"] = True
+        self.assertIn("进行中", self.render_milestone(facts).split('<nav class="toc">')[0])
+
+    def test_sections_and_toc(self):
+        html = self.render_milestone()
+        for number, title in enumerate(("这一站做成了什么", "代码地图", "沿典型用法走一遍", "跨模块约定", "各模块讲解", "需要你判断的"), 1):
+            self.assertIn("%d %s" % (number, title), html)
+        self.assertNotIn('id="why"', html)
+
+    def test_code_map_from_facts(self):
+        facts = self.load()
+        part = self.section(self.render_milestone(), "codemap")
+        self.assertIn("新增都在", part)
+        for group in facts["codeMap"]:
+            self.assertIn("<code>%s</code>" % group["path"], part)
+        changed, unchanged = part.split("<details")[0], part.split("<details")[1]
+        self.assertIn("<code>src/alpha</code>", changed)
+        self.assertIn("<code>spec/usage</code>", unchanged)
+        self.assertNotIn("<code>spec/usage</code>", changed)
+
+    def test_module_table_links(self):
+        out_dir = os.path.join(self.tmp.name, "out")
+        os.makedirs(out_dir, exist_ok=True)
+        open(os.path.join(out_dir, "alpha.html"), "w").close()
+        part = self.section(self.render_milestone(), "modules")
+        self.assertIn('<a href="alpha.html">', part)
+        self.assertIn("还没生成", part)
+        self.assertIn("/delivery-brief:brief beta", part)
+        self.assertIn("做 A", part)
+        self.assertNotIn('href="beta.html"', part)
+        self.assertNotIn("（由脚本生成）", part)

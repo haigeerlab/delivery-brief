@@ -18,6 +18,10 @@ import brief_markdown as md  # noqa: E402
 
 SECTION_IDS = [("为什么改", "why"), ("产出清单", "inventory"), ("分层讲改动", "layers"), ("阅读路线", "route"),
                ("需要你判断的", "judge"), ("附录", "appendix")]
+MILESTONE_SECTION_IDS = [("这一站做成了什么", "done"), ("代码地图", "codemap"), ("沿典型用法走一遍", "walk"),
+                         ("跨模块约定", "conventions"), ("各模块讲解", "modules"), ("需要你判断的", "judge"),
+                         ("附录", "appendix")]
+MODULE_STATUS = {"done": "已完成", "inProgress": "进行中", "missing": "推断不出范围"}
 MERMAID = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
 VERDICTS = {"confirmed": "成立，已改", "rejected": "不成立", "unverified": "没有核实"}
 STATUS = {"A": "新增", "M": "修改", "D": "删除", "R": "重命名", "C": "复制", "T": "类型变化"}
@@ -153,8 +157,10 @@ class ShotsError(ValueError):
 
 
 class Renderer:
-    def __init__(self, facts, cross=None, shots=None, shots_href="", shots_skipped=None):
+    def __init__(self, facts, cross=None, shots=None, shots_href="", shots_skipped=None, out_dir=None):
         self.facts = facts
+        self.milestone = facts.get("milestone")
+        self.out_dir = out_dir
         self.links = facts["links"]
         self.cross = cross
         self.shots = shots
@@ -288,12 +294,25 @@ class Renderer:
         rng = facts["range"]
         totals = facts["totals"]
         module = facts.get("module")
-        source = '<span class="tag mod">推断</span>' if rng["source"] == "inferred-spec-guard" else '<span class="tag new">指定</span>'
+        source = ('<span class="tag mod">推断</span>' if rng["source"].startswith("inferred-spec-guard")
+                  else '<span class="tag new">指定</span>')
         span = "%s..%s" % (rng["base"][:8] if rng["base"] else "（根）", rng["head"][:8])
-        meta = ["<span>%s · %s</span>" % (esc(facts["project"]["name"]), "模块讲解" if module else "提交段讲解"),
+        kind = "里程碑讲解" if self.milestone else "模块讲解" if module else "提交段讲解"
+        meta = ["<span>%s · %s</span>" % (esc(facts["project"]["name"]), kind),
                 "<span>范围 %s <code>%s</code>（%d 个提交）</span>" % (source, esc(span), len(facts["commits"])),
                 "<span>%d 个文件 +%d / −%d</span>" % (totals["files"], totals["added"], totals["deleted"])]
-        if rng.get("inProgress"):
+        if self.milestone:
+            milestone = self.milestone
+            meta.insert(1, "<span>%s · 典型用法 %s · %d 个模块</span>" % (
+                esc(milestone["id"]), esc("、".join(("%s %s" % (u["id"], u["title"])).strip() for u in milestone["usages"])),
+                len(milestone["modules"])))
+            if rng.get("inProgress"):
+                meta.append('<span><span class="tag flag">进行中</span> 有模块还没做完</span>')
+            elif milestone["confirmed"]:
+                meta.append('<span><span class="tag new">已确认</span> 用法草案里已记下里程碑确认</span>')
+            else:
+                meta.append('<span><span class="tag mod">还没确认</span> 用法草案里没有里程碑确认</span>')
+        elif rng.get("inProgress"):
             meta.append('<span><span class="tag flag">进行中</span> 还没有勾上的（gate）检查点</span>')
         elif module and any(item["checked"] and item["text"].startswith("发版") for item in module["todo"]["atHead"]):
             meta.append('<span><span class="tag new">已发版</span> todo 里的发版一项已勾</span>')
@@ -314,9 +333,48 @@ class Renderer:
         parts.append("</header>")
         return "\n".join(parts)
 
+    def section_ids(self):
+        return MILESTONE_SECTION_IDS if self.milestone else SECTION_IDS
+
     def toc(self):
         return [(anchor, ("附录 文件与提交" if title == "附录" else "%d %s" % (index, title)))
-                for index, (title, anchor) in enumerate(SECTION_IDS, 1)]
+                for index, (title, anchor) in enumerate(self.section_ids(), 1)]
+
+    def code_map(self):
+        def cells(group):
+            def count(key, cls):
+                value = group[key]
+                return '<td><span class="tag %s">%d</span></td>' % (cls, value) if value else "<td>0</td>"
+            return '<tr><td style="white-space:nowrap"><code>%s</code></td>%s%s%s<td>%d</td></tr>' % (
+                esc(group["path"]), count("added", "new"), count("modified", "mod"), count("deleted", "flag"), group["unchanged"])
+        head = "<tr><th>目录</th><th>新增</th><th>修改</th><th>删除</th><th>未改</th></tr>"
+        groups = self.facts.get("codeMap", [])
+        changed = sorted((g for g in groups if g["added"] + g["modified"] + g["deleted"]),
+                         key=lambda g: (-(g["added"] + g["modified"] + g["deleted"]), g["path"]))
+        quiet = [g for g in groups if not g["added"] + g["modified"] + g["deleted"]]
+        html = ('<p class="why">终点提交上的目录（取前两层），数字是文件数，由 delivery-brief 从 git 生成。</p>'
+                '<div class="scroll"><table>%s%s</table></div>' % (head, "".join(cells(g) for g in changed)))
+        if quiet:
+            html += ('<details><summary>这一站没改动的目录（%d 个）</summary><div class="scroll"><table>%s%s</table></div></details>'
+                     % (len(quiet), head, "".join(cells(g) for g in quiet)))
+        return html
+
+    def module_table(self):
+        rows = []
+        for module in self.milestone["modules"]:
+            rng = module.get("range")
+            span = ("<code>%s..%s</code>" % ((rng["base"] or "")[:8] or "（根）", rng["head"][:8])) if rng else "—"
+            page = module["id"] + ".html"
+            if self.out_dir and os.path.isfile(os.path.join(self.out_dir, page)):
+                link = '<a href="%s">%s</a>' % (esc(page), esc(page))
+            else:
+                link = "还没生成：<code>/delivery-brief:brief %s</code>" % esc(module["id"])
+            nowrap = '<td style="white-space:nowrap">'
+            rows.append("<tr>%s<code>%s</code></td><td>%s</td>%s%s</td>%s%s</td>%s%s</td></tr>" % (
+                nowrap, esc(module["id"]), self.inline(md.inlines(module["responsibility"])), nowrap, span,
+                nowrap, MODULE_STATUS.get(module["status"], esc(module["status"])), nowrap, link))
+        return ('<div class="scroll"><table><tr><th>模块</th><th>职责</th><th>范围</th><th>状态</th><th>讲解页</th></tr>%s</table></div>'
+                % "".join(rows))
 
     def appendix(self):
         files = "".join(
@@ -366,10 +424,10 @@ class Renderer:
         title_block = next((b for b in intro if b["type"] == "heading" and b["level"] == 1), None)
         module = self.facts.get("module")
         title = title_block["inlines"] if title_block else [("text", "%s 讲解" % (
-            module["id"] if module else "%s..%s" % ((self.facts["range"]["base"] or "")[:8], self.facts["range"]["head"][:8])))]
+            "%s 里程碑" % self.milestone["id"] if self.milestone else module["id"] if module else "%s..%s" % ((self.facts["range"]["base"] or "")[:8], self.facts["range"]["head"][:8])))]
         terms_block = next((b for b in intro if b["type"] == "details"), None)
         intro_blocks = [b for b in intro if b is not title_block and b is not terms_block]
-        anchors = dict(SECTION_IDS)
+        anchors = dict(self.section_ids())
         labels = dict(self.toc())
         body = []
         for name, section_blocks in sections[1:]:
@@ -379,7 +437,14 @@ class Renderer:
             if name == "附录":
                 body.append(self.appendix())
             else:
+                if self.milestone and name in ("代码地图", "各模块讲解"):
+                    section_blocks = [b for b in section_blocks
+                                      if not (b["type"] == "paragraph" and md.plain(b["inlines"]).strip() == "（由脚本生成）")]
                 body.extend(self.block(b) for b in section_blocks)
+                if self.milestone and name == "代码地图":
+                    body.append(self.code_map())
+                elif self.milestone and name == "各模块讲解":
+                    body.append(self.module_table())
         rng = self.facts["range"]
         footer = ("<footer>讲解是代码的摘要，以链接指向的代码为准。范围 <code>%s..%s</code>（%s）；链接：%s。"
                   "页头与附录的数字由 delivery-brief 从 git 直接生成。%s</footer>"
@@ -439,7 +504,8 @@ def main(argv=None):
         href = os.path.relpath(os.path.dirname(os.path.abspath(args.shots)),
                                os.path.dirname(os.path.abspath(args.out))).replace(os.sep, "/")
         href = "" if href == "." else href
-    page = Renderer(facts, cross, shots, href, args.shots_skipped).page(blocks)
+    page = Renderer(facts, cross, shots, href, args.shots_skipped,
+                    os.path.dirname(os.path.abspath(args.out))).page(blocks)
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as handle:
         handle.write(page)
