@@ -1,7 +1,7 @@
 # Todo: brief-facts
 
 - [x] Task 0：提交 Plan 与 todo — 2026-11-19 用户批准 Plan（「批准」），本提交记录批准标记。
-- [ ] Task 1：插件骨架
+- [x] Task 1：插件骨架 — marketplace、plugin.json（版本 0.0.0，M1 发版时定）、README「开发中」、.gitignore；`claude plugin validate .` 与插件目录均通过（README 缺安装行只是建议，M1 补）。
 - [ ] Task 2：显式提交段的事实
 - [ ] Task 3：spec-guard 文件解析
 - [ ] Task 4：模块范围推断
