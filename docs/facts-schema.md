@@ -37,6 +37,20 @@ spec-guard 现有的只读接口给不出模块的提交列表，所以按它公
 
 spec-guard 若提供权威的模块提交接口，改用接口，本规则留作后备。
 
+## 渲染脚本读哪些字段
+
+`render_brief.py` 只从 facts 取这些，生成页头、提示框与附录，讲解源文件里不写这些数字：
+
+- 页头：`project.name`、`range.base`、`range.head`、`range.source`（「推断」或「指定」标签）、`commits` 的个数、
+  `totals.files`／`added`／`deleted`、`range.inProgress`（「进行中」）、`module.todo.atHead` 里已勾且含「发版」的项（「已发版」）。
+- 提示框：`warnings` 逐条；`links.kind` 为 `local` 且 `links.workingTreeMatchesEnd` 为 `false` 时加一条「本机工作区与终点提交不一致」。
+- 引用链接：`links.kind`、`links.base`、`links.lineFormat`。
+- 附录：`files`（路径、原路径、状态、增删或二进制）、`commits`（短号、标题、日期）、`totals`。
+- 页脚：`range` 与 `links.reason`。
+
+`check_brief.py` 另读：`project.root` 与 `range.head`（用 `git show` 核对引用）、`module.spec.acs` 与 `acsNumbered`（AC 表是否齐全）、
+`commits`、`range.basis.laterModuleCommits`、`project.head` 与 `module.spec.marker`（正文里允许出现的提交号）。
+
 ## 字段
 
 ### 顶层
