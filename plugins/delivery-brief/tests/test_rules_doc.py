@@ -113,5 +113,26 @@ class RulesTemplateTest(unittest.TestCase):
             self.assertIn(phrase, RULES)
 
 
+class MilestoneDocsTest(unittest.TestCase):
+    def test_rules_milestone_template_matches_checker(self):
+        part = RULES.split("## 里程碑页", 1)[1]
+        template = part.split("````markdown", 1)[1].split("````", 1)[0]
+        self.assertEqual(tuple(re.findall(r"^## (.+)$", template, flags=re.M)), check_brief.MILESTONE_SECTIONS)
+        for name in check_brief.MILESTONE_SECTIONS:
+            self.assertIn("### %s" % name, part)
+        for phrase in ("3～10", "两个不同文件", "没有新约定", "模块 id"):
+            self.assertIn(phrase, part)
+
+    def test_command_milestone_flow(self):
+        hint = COMMAND.split("argument-hint:")[1].splitlines()[0]
+        for option in ("--milestone <M>", "--draft"):
+            self.assertIn(option, hint)
+        for phrase in ("--milestone", "milestone-$M", "里程碑页暂不支持交叉核对", "不截图", "还没生成",
+                       "成功标准", "<模块 id>.md"):
+            self.assertIn(phrase, COMMAND)
+        for option in ("--milestone", "--draft"):
+            self.assertIn(option, help_text("brief_facts.py"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 ---
 description: "生成模块或一段提交的讲解页：几分钟看懂这次造了什么、怎么串起来、哪里要人判断"
-argument-hint: "<模块 id | base..head> [--project <dir>] [--no-open] [--cross-check] [--no-screenshots] [--base-url <地址>]"
+argument-hint: "<模块 id | base..head | --milestone <M> [--draft <草案>]> [--project <dir>] [--no-open] [--cross-check] [--no-screenshots] [--base-url <地址>]"
 allowed-tools: Bash, Read, Write, Edit
 ---
 
@@ -18,7 +18,8 @@ cat "${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"
 
 ## 1. 解析参数并收集事实
 
-- 第一个参数含 `..` 时是提交段（`--range`），否则是模块 id（`--module`）。`--project` 缺省为当前目录所在 git 仓库的根目录。
+- 第一个参数含 `..` 时是提交段（`--range`）；给了 `--milestone <M>` 时是**里程碑页**（见下面「里程碑页」一节，可带 `--draft <草案>`）；
+  否则是模块 id（`--module`）。`--project` 缺省为当前目录所在 git 仓库的根目录。
 - 输出目录 `OUT=~/.claude/delivery-brief/<项目目录名>`（即 facts 的 `project.name`，仓库根目录的名字），文件名 `NAME` 为模块 id；提交段时为 `<base 前 8 位>..<head 前 8 位>`
   （先用 `git rev-parse` 解析成完整提交号）。
 
@@ -26,6 +27,7 @@ cat "${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"
 mkdir -p "$OUT"
 python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py" --project "$PROJECT" --module <id> > "$OUT/$NAME.facts.json"
 # 或：--range <base>..<head>
+# 或：--milestone <M>（有多份用法草案时加 --draft spec/usage/<需求>.md）
 ```
 
 - 退出码非 0 时，删掉空的 facts 文件，原样转述 stderr 那一行并停下：2 是参数错，3 是范围解析不了（不是 spec-guard 项目时提示改用 `<base>..<head>`），4 是 git 出错。
@@ -34,6 +36,18 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py" --project "$PROJECT" -
 ```bash
 git -C "$PROJECT" status --porcelain > "$OUT/.$NAME.before"; git -C "$PROJECT" for-each-ref >> "$OUT/.$NAME.before"
 ```
+
+### 里程碑页（给了 `--milestone <M>` 时）
+
+和模块页走同一套第 1～6 步，只有这些不同：
+
+- 文件名 `NAME=milestone-$M`（如 `milestone-M1`），和模块页在同一个输出目录，这样里程碑页能用相对链接指向各模块页。
+- 第 2 步报告里多说：这一站的典型用法、几个模块、各自状态（`milestone.modules[].status`）、里程碑确认了没有；范围是各模块范围的并集。
+- 第 3 步按讲解规则「里程碑页」一节的读取策略与七节写法；先读各模块 Spec 的**成功标准**，再读输出目录里已有的模块页源文件 `"$OUT/<模块 id>.md"`，
+  最后读模块之间接口处的代码。
+- 缺模块页时**只标出来，不替用户生成**：渲染脚本会在「各模块讲解」表里写「还没生成」和生成命令，回复时也提一句。
+- 给了 `--cross-check` 时告诉用户「里程碑页暂不支持交叉核对」，跳过第 4.5 步，照常生成。
+- 不截图（截图属于模块页），跳过第 4.6 步。
 
 ## 2. 先报给用户，必要时停下
 
