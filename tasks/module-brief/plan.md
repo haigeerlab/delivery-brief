@@ -1,6 +1,6 @@
 # Plan: module-brief
 
-<!-- spec-guard: review pending -->
+<!-- spec-guard: review approved -->
 
 依据 [`spec/module-brief.md`](../../spec/module-brief.md)（2026-11-19 用户在本会话批准：「批准；Q1 A；Q2 A」，提交 `91d4ff2`）。
 分支 `main`（本仓库没有远端），串行，在本会话做。本模块不发版：M1 还差 cross-check，发版在 cross-check 验收后。

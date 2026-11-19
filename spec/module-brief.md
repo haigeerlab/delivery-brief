@@ -1,6 +1,6 @@
 # Spec: module-brief
 
-<!-- spec-guard: review pending -->
+<!-- spec-guard: review approved 3f140716f05a -->
 
 ## 目标
 

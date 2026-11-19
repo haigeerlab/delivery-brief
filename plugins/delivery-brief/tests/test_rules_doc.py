@@ -71,6 +71,47 @@ class SafeRemovalTest(unittest.TestCase):
         self.assertGreater(found, 0)
 
 
+def bash_blocks():
+    return re.findall(r"```bash\n(.*?)```", COMMAND, re.S)
+
+
+def block_with(needle):
+    found = [b for b in bash_blocks() if needle in b]
+    assert len(found) == 1, "expected one bash block with %r, got %d" % (needle, len(found))
+    return found[0]
+
+
+class FewerTurnsTest(unittest.TestCase):
+    """Spec assumption 10: steps that do not need each other's results go into one call."""
+
+    def test_prepare_block_reads_rules_collects_facts_and_records_state(self):
+        block = block_with("brief-rules.md")
+        self.assertIn('"${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py"', block)
+        self.assertIn('"$OUT/.$NAME.before"', block)
+        self.assertIn('cat "$OUT/$NAME.facts.json"', block)
+
+    def test_reading_is_batched(self):
+        for phrase in ("分批", "每批", "3 万字符"):
+            self.assertIn(phrase, COMMAND)
+
+    def test_write_and_check_in_one_message(self):
+        self.assertIn("同一条消息", COMMAND.split("## 4. 检查")[0].split("## 3.")[1])
+
+    def test_screenshot_export_install_and_start_in_one_call(self):
+        block = block_with("nohup")
+        self.assertIn('git -C "$PROJECT" archive', block)
+        self.assertIn("install", block)
+
+    def test_screenshots_viewed_together(self):
+        self.assertIn("一次看完", COMMAND.split("## 4.6")[1].split("## 5.")[0])
+
+    def test_render_block_opens_and_compares_state(self):
+        block = block_with('"${CLAUDE_PLUGIN_ROOT}/scripts/render_brief.py"')
+        self.assertIn('open "$OUT/$NAME.html"', block)
+        self.assertIn('diff "$OUT/.$NAME.before"', block)
+        self.assertIn('kill -- "-$PGID"', block)
+
+
 class ScreenshotDocsTest(unittest.TestCase):
     def test_command_screenshot_flow(self):
         hint = COMMAND.split("argument-hint:")[1].splitlines()[0]

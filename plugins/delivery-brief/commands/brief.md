@@ -8,11 +8,10 @@ allowed-tools: Bash, Read, Write, Edit
 **不写目标项目的任何文件，不改它的 git 状态**；要在目标项目目录里跑命令（读 git 除外）、或要联网（`gh` 查链接除外），先问用户。
 例外：第 4.6 步截图时，在导出的临时目录里按锁文件装依赖（要联网）、起开发服务器，不另问（第 2 步会先告诉用户）。
 
-开始前先读讲解规则，后面每一步都照它做：
+第 1 步的准备块会打印讲解规则，后面每一步都照它做。
 
-```bash
-cat "${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"
-```
+**少跑几轮**：每多一轮，整个上下文都要重读一遍。前后不依赖彼此结果的命令放进同一次调用（下面的命令块已经这样合好），
+多个工具调用能放进同一条消息的就放进同一条消息（同一条消息里的调用按顺序执行）。合并的命令块里每一步先 `echo "=== <步骤>"`，出错时看是哪一步。
 
 删除文件时目标一律写成 `"${变量:?}/…"`：变量为空时 shell 直接报错，不会删到根目录（Claude Code 也会拒绝没有这样写的删除）。
 
@@ -22,20 +21,26 @@ cat "${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"
   否则是模块 id（`--module`）。`--project` 缺省为当前目录所在 git 仓库的根目录。
 - 输出目录 `OUT=~/.claude/delivery-brief/<项目目录名>`（即 facts 的 `project.name`，仓库根目录的名字），文件名 `NAME` 为模块 id；提交段时为 `<base 前 8 位>..<head 前 8 位>`
   （先用 `git rev-parse` 解析成完整提交号）。
+- **准备块**（一次调用）：读讲解规则、收集事实、删掉同名旧产物、记下目标项目的状态（最后一步要比对）、打印 facts：
 
 ```bash
+PROJECT="$(git -C <项目目录> rev-parse --show-toplevel)"; OUT=~/.claude/delivery-brief/"$(basename "$PROJECT")"; NAME=<模块 id>
+# 提交段：NAME="$(git -C "$PROJECT" rev-parse <base> | cut -c1-8)..$(git -C "$PROJECT" rev-parse <head> | cut -c1-8)"；里程碑：NAME=milestone-<M>
 mkdir -p "$OUT"
-python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py" --project "$PROJECT" --module <id> > "$OUT/$NAME.facts.json"
-# 或：--range <base>..<head>
-# 或：--milestone <M>（有多份用法草案时加 --draft spec/usage/<需求>.md）
+echo "=== 讲解规则"; cat "${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"
+echo "=== 事实"
+if python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py" --project "$PROJECT" --module <id> > "$OUT/$NAME.facts.json"; then
+  rm -rf "${OUT:?}/${NAME:?}.md" "${OUT:?}/${NAME:?}.html" "${OUT:?}/${NAME:?}.shots"
+  { git -C "$PROJECT" status --porcelain; git -C "$PROJECT" for-each-ref; } > "$OUT/.$NAME.before"
+  echo "PROJECT=$PROJECT OUT=$OUT NAME=$NAME"; cat "$OUT/$NAME.facts.json"
+else
+  echo "brief_facts 退出 $?"; rm -f "${OUT:?}/${NAME:?}.facts.json"
+fi
+# --module <id> 换成：--range <base>..<head>，或 --milestone <M>（有多份用法草案时加 --draft spec/usage/<需求>.md）
 ```
 
-- 退出码非 0 时，删掉空的 facts 文件，原样转述 stderr 那一行并停下：2 是参数错，3 是范围解析不了（不是 spec-guard 项目时提示改用 `<base>..<head>`），4 是 git 出错。
-- 记下目标项目的状态，最后一步要比对：
-
-```bash
-git -C "$PROJECT" status --porcelain > "$OUT/.$NAME.before"; git -C "$PROJECT" for-each-ref >> "$OUT/.$NAME.before"
-```
+- 退出码非 0 时（块里会打印「brief_facts 退出 <n>」和 stderr 那一行），原样转述那一行并停下：2 是参数错，3 是范围解析不了（不是 spec-guard 项目时提示改用 `<base>..<head>`），4 是 git 出错。
+- 每次调用是新的 shell，变量不会留下：后面的命令块开头照抄准备块打印的 `PROJECT`、`OUT`、`NAME`。
 
 ### 里程碑页（给了 `--milestone <M>` 时）
 
@@ -62,7 +67,10 @@ git -C "$PROJECT" status --porcelain > "$OUT/.$NAME.before"; git -C "$PROJECT" f
 
 ## 3. 读代码，写讲解源文件
 
-- 按讲解规则的读取策略读，写 `$OUT/$NAME.md`。同名文件已存在时先 `rm -rf "${OUT:?}/${NAME:?}.md" "${OUT:?}/${NAME:?}.html" "${OUT:?}/${NAME:?}.shots"` 再写，不读旧文件。格式、六节各写什么、证据硬规则、选图规则都以讲解规则为准。
+- 按讲解规则的读取策略读，写 `$OUT/$NAME.md`（准备块已删掉同名旧产物，不读旧文件）。格式、六节各写什么、证据硬规则、选图规则都以讲解规则为准。
+- **分批读**：看完 facts 先列出要读的 diff 与文件片段，再分批读：每批一次调用读多个（循环 `git diff`、`git show … | sed -n`，
+  每段前 `echo "=== <文件>"`），每批输出控制在约 3 万字符以内——超了会被存成文件再读一次，反而多一轮。写的过程中发现要补读的，攒成一批再读。
+- **写完当条消息就检查**：用 Write 写讲解源文件，在同一条消息里紧接着调用第 4 步的检查，不单独等写入结果。改源文件后复检也一样。
 - 需要实跑输出时，在临时目录里跑，**不在目标项目里跑**。在导出的临时目录里跑目标项目自己的测试或命令不用先问
   （它不碰项目本身）；为验证边界可以在临时目录里增改文件，讲解里写明输入是构造的。跑完删掉临时目录：
 
@@ -131,30 +139,33 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/crosscheck_material.py" --facts "$OUT/
 1. **给了 `--no-screenshots`**：`SKIP="指定了 --no-screenshots"`。
 2. **给了 `--base-url <地址>`**：不导出、不装依赖、不起服务，`BASE=<地址>`、`ORIGIN=base-url`，直接到第 6 小步。截的是用户工作区里跑着的样子，
    页面附录会写「未核对与终点提交一致」。
-3. **找启动方式**，按这个顺序，找到一个就停：终点提交上的 `.claude/launch.json`（`configurations` 里的命令、参数、端口）、`package.json` 的
+3. **找启动方式**（读终点提交上的文件，一次调用读完），按这个顺序，找到一个就停：终点提交上的 `.claude/launch.json`（`configurations` 里的命令、参数、端口）、`package.json` 的
    `dev` 或 `start` 脚本、README 里写的启动命令。都没有：`SKIP="找不到启动方式（没有 .claude/launch.json、dev／start 脚本或 README 说明）"`。
-4. **导出终点提交并装依赖**（都在临时目录里，不碰目标项目；记下各步耗时）：
+4. **导出、装依赖、起服务**（一次调用；都在临时目录里，不碰目标项目；块里打印各步耗时）：
 
 ```bash
 SHOT_TMP="$(mktemp -d)"
-git -C "$PROJECT" archive <range.head> | tar -x -C "$SHOT_TMP"
+echo "=== 导出"; git -C "$PROJECT" archive <range.head> | tar -x -C "$SHOT_TMP"
 PORT="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"  # 空闲端口
+cd "$SHOT_TMP" || exit 1; S=$(date +%s)
+echo "=== 装依赖"
+if <装依赖命令，如 pnpm install --frozen-lockfile>; then
+  echo "装依赖 $(( $(date +%s) - S )) 秒"
+  echo "=== 起服务"; PORT="$PORT" nohup python3 -c 'import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' <启动命令与参数> > "$SHOT_TMP/.server.log" 2>&1 &
+  PGID=$!
+else
+  echo "装依赖失败"; PGID=
+fi
+echo "SHOT_TMP=$SHOT_TMP PORT=$PORT PGID=$PGID"
 ```
 
-   按锁文件选装依赖命令，在 `"$SHOT_TMP"` 里跑（Bash 超时给 600000）：`pnpm-lock.yaml` → `pnpm install --frozen-lockfile`；
+   装依赖命令按锁文件选（Bash 超时给 600000）：`pnpm-lock.yaml` → `pnpm install --frozen-lockfile`；
    `package-lock.json` → `npm ci`；`yarn.lock` → `yarn install --frozen-lockfile`；`bun.lockb`／`bun.lock` → `bun install --frozen-lockfile`。
    没有锁文件：`SKIP="没有锁文件，不装依赖"`。装失败：`SKIP="装依赖失败：<最后一行报错>"`。
    **不复用目标项目的 `node_modules`**（开发服务器会往里写缓存），**不复制 `.env`、`.env.local` 等不在版本库里的文件**；
    要复制它们才能起来时先问用户，用户不同意就照实写原因。
-5. **起服务**：在 `"$SHOT_TMP"` 里后台启动，放进新的进程组，输出写日志，记下进程组号：
-
-```bash
-cd "$SHOT_TMP" && PORT="$PORT" nohup python3 -c 'import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' <启动命令与参数> > "$SHOT_TMP/.server.log" 2>&1 &
-PGID=$!
-BASE="http://127.0.0.1:$PORT"; ORIGIN=export
-```
-
-   端口：`launch.json` 写了端口就用它（被占用时 `SKIP="端口 <n> 被占用"`）；Next.js 等读 `PORT` 环境变量的直接用；Vite 类在命令后加
+5. **端口与进程组**：服务在新的进程组里后台跑，输出写进日志，块末打印的 `PGID` 就是进程组号，记下它和 `SHOT_TMP`、`PORT`（第 8 小步要用）。
+   `BASE="http://127.0.0.1:$PORT"`、`ORIGIN=export`。端口：`launch.json` 写了端口就用它（被占用时 `SKIP="端口 <n> 被占用"`）；Next.js 等读 `PORT` 环境变量的直接用；Vite 类在命令后加
    `--port "$PORT" --strictPort`。不改项目的配置文件来换端口。
 6. **截图**：
 
@@ -164,39 +175,39 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/take_screenshots.py" --source "$OUT/$N
 ```
 
    全部失败且原因是地址不可访问时，看 `"$SHOT_TMP/.server.log"` 最后几行，把真正原因（缺环境变量、端口、编译报错）写进每张的 `reason`。
-7. **逐张看截图**：用 Read 打开 `"$OUT/$NAME.shots"` 里每张 `ok` 的 PNG，对照截图块的页面名判断截到的是不是这个页面。
+7. **逐张看截图，一次看完**：截图文件按截图块的顺序编号（`01.png`、`02.png`…），在第 6 小步那条消息里紧接着用 Read 打开每一张（写完整路径），
+   失败的那张读不到不要紧。看每张 `ok` 的 PNG，对照截图块的页面名判断截到的是不是这个页面。
    登录页、报错页、空白页、加载中、和页面名对不上的，把 `shots.json` 里这一张改成 `"status": "failed"`，`reason` 写清楚
    （如「需要登录，截到的是登录页」）。**不替用户登录，不输入任何账号密码**，也不点击页面；截图只反映直接打开地址时的样子。
    不拿别的页面顶替截不到的页面。`httpStatus` ≥ 400 的一般也改成失败。
-8. **收尾（无论成败都做）**：停掉服务、删掉导出目录，确认端口上没有残留进程：
-
-```bash
-kill -- "-$PGID" 2>/dev/null; sleep 3; kill -9 -- "-$PGID" 2>/dev/null
-rm -rf "${SHOT_TMP:?}"
-lsof -nP -iTCP:"$PORT" -sTCP:LISTEN || echo "端口已释放"
-```
-
-   给了 `--base-url` 时没有起服务，不停任何进程。
+8. **收尾（无论成败都做）**：停掉服务、删掉导出目录、确认端口上没有残留进程。这一步并在第 5 步的渲染块开头做（见那里），不单独调用。
+   要改 `shots.json` 时，在渲染那条消息里先改再渲染。给了 `--base-url` 时没有起服务，不停任何进程。
 
 ## 5. 渲染并打开
 
+一次调用：收尾截图（起过服务时）、渲染、打开、核对目标项目状态。
+
 ```bash
-python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/render_brief.py" --facts "$OUT/$NAME.facts.json" --source "$OUT/$NAME.md" --out "$OUT/$NAME.html"
-# 给了 --cross-check 时末尾加：--cross-check "$OUT/$NAME.crosscheck.json"
-# 截了图时末尾加：--shots "$OUT/$NAME.shots/shots.json"
-# 有截图块但没截（第 4.6 步设了 SKIP）时末尾加：--shots-skipped "$SKIP"
+PROJECT=<…>; OUT=<…>; NAME=<…>   # 照抄准备块打印的值
+echo "=== 收尾截图"   # 起过服务时（第 4.6 步记下的值）；没起服务删掉下面三行
+PGID=<…>; SHOT_TMP=<…>; PORT=<…>
+kill -- "-$PGID" 2>/dev/null; sleep 3; kill -9 -- "-$PGID" 2>/dev/null; rm -rf "${SHOT_TMP:?}"
+lsof -nP -iTCP:"$PORT" -sTCP:LISTEN || echo "端口已释放"
+echo "=== 渲染"
+python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/render_brief.py" --facts "$OUT/$NAME.facts.json" --source "$OUT/$NAME.md" --out "$OUT/$NAME.html" && open "$OUT/$NAME.html"
+# 给了 --cross-check 时 --out 之后加：--cross-check "$OUT/$NAME.crosscheck.json"
+# 截了图时加：--shots "$OUT/$NAME.shots/shots.json"
+# 有截图块但没截（第 4.6 步设了 SKIP）时加：--shots-skipped "$SKIP"
+# 给了 --no-open 或没有 open 命令时去掉 && open …，只给路径
+echo "=== 项目状态"
+{ git -C "$PROJECT" status --porcelain; git -C "$PROJECT" for-each-ref; } | diff "$OUT/.$NAME.before" - && rm "${OUT:?}/.${NAME:?}.before"
 ```
 
 - 截了图时，讲解页按相对路径引用 `$NAME.shots/` 里的图片，两者要放在一起；`$OUT/$NAME.shots` 也是输出的一部分，不要删。
 
 - 渲染退出 2 且说「核对记录不能用」时，按提示修好记录文件再渲染。
 
-- 没给 `--no-open` 且有 `open` 命令时，`open "$OUT/$NAME.html"`；否则只给路径。
-- 再取一次目标项目的状态，和第 1 步比对，比完删掉记录文件；不一致就如实告诉用户哪里变了：
-
-```bash
-{ git -C "$PROJECT" status --porcelain; git -C "$PROJECT" for-each-ref; } | diff "$OUT/.$NAME.before" - && rm "${OUT:?}/.${NAME:?}.before"
-```
+- 项目状态和第 1 步记下的不一致时（`diff` 有输出），如实告诉用户哪里变了。
 
 中途停下（任何一步退出码非 0、等用户答复）时，先删掉 `$OUT/.$NAME.before`，答复后重新开始时再从第 1 步记。
 
