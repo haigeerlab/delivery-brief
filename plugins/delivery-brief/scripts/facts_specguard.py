@@ -94,7 +94,17 @@ def parse_spec(text):
             acs.append({"id": match.group(1), "text": match.group(2).strip()})
         elif acs and line.startswith((" ", "\t")) and line.strip() and not line.strip().startswith(("-", "*")):
             acs[-1]["text"] += line.strip()
-    return {"marker": marker, "acs": acs}
+    numbered = bool(acs)
+    if not acs:
+        lines = visible_lines(text)
+        section = _section(lines, "成功标准") or _section(lines, "Success Criteria")
+        for line in section:
+            bullet = re.match(r"^[-*]\s+(.*)$", line)
+            if bullet:
+                acs.append({"id": None, "text": bullet.group(1).strip()})
+            elif acs and line.startswith((" ", "\t")) and line.strip():
+                acs[-1]["text"] += line.strip()
+    return {"marker": marker, "acs": acs, "numbered": numbered}
 
 
 def parse_todo(text):

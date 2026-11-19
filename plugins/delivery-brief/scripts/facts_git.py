@@ -67,6 +67,19 @@ def commit_shas(project, base, head):
     return text(project, "rev-list", "--no-merges", "--reverse", _spec(base, head)).split()
 
 
+def path_commits(project, rev, paths):
+    """Non-merge commits reachable from rev that touch any of paths, oldest first."""
+    return text(project, "log", "--reverse", "--no-merges", "--format=%H", rev, "--", *paths).split()
+
+
+def list_dir(project, rev, path):
+    """File names directly under path at rev ([] when it does not exist)."""
+    proc = run(project, "ls-tree", "--name-only", "-z", "%s:%s" % (rev, path), check=False)
+    if proc.returncode != 0:
+        return []
+    return [name for name in proc.stdout.decode("utf-8").split("\x00") if name]
+
+
 def commit_info(project, sha):
     subject, date = text(project, "show", "--no-patch", "--format=%s%x00%cI", sha).rstrip("\n").split("\x00")
     raw = run(project, "diff-tree", "--no-commit-id", "-r", "-z", "--name-only", "--root", "-M", sha).stdout

@@ -97,6 +97,12 @@ class SpecTest(unittest.TestCase):
         self.assertEqual(facts["acs"][0]["text"], "第一条，续行也算这条。")
         self.assertEqual(facts["acs"][1]["text"], "第二条")
 
+    def test_unnumbered_success_criteria(self):
+        facts = sg.parse_spec("# S\n\n## 成功标准\n\n- 第一条\n  续行\n- 第二条\n\n## 待定问题\n\n- 无。\n")
+        self.assertFalse(facts["numbered"])
+        self.assertEqual(facts["acs"], [{"id": None, "text": "第一条续行"}, {"id": None, "text": "第二条"}])
+        self.assertTrue(sg.parse_spec(SPEC)["numbered"])
+
     def test_pending_and_missing_marker(self):
         self.assertEqual(sg.parse_spec("# S\n\n<!-- spec-guard: review pending -->\n")["marker"], "pending")
         self.assertIsNone(sg.parse_spec("# S\n")["marker"])
