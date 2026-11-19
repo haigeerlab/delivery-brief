@@ -6,14 +6,14 @@ AC、勾选状态都从这里取，不靠模型回忆。本文件是字段的唯
 ## 用法
 
 ```text
-python3 -B plugins/delivery-brief/scripts/brief_facts.py --project <dir> (--module <id> | --range <base>..<head>) [--offline]
+python3 -B plugins/delivery-brief/scripts/brief_facts.py --project <dir> (--module <id> | --range <base>..<head> | --milestone <M> [--draft <草案>]) [--offline]
 ```
 
 | 退出码 | 含义 |
 |---|---|
 | 0 | 成功，stdout 是 JSON |
-| 2 | 参数错（缺参数、`--range` 写法不对、模块 id 不是 kebab-case、`--module` 与 `--range` 同时给） |
-| 3 | 解析不出范围：提交不存在；没有 `spec/CAPABILITY-MAP.md`；模块不在能力图上；模块还没有任何提交 |
+| 2 | 参数错（缺参数、`--range` 写法不对、模块 id 不是 kebab-case、里程碑编号不是 `M1` 这种写法、三种范围同时给、`--draft` 没和 `--milestone` 一起、有多份用法草案却没给 `--draft`） |
+| 3 | 解析不出范围：提交不存在；没有 `spec/CAPABILITY-MAP.md`；模块不在能力图上；模块还没有任何提交；用法草案或里程碑不存在；里程碑的模块都推断不出范围 |
 | 4 | git 出错，或 `--project` 不是 git 仓库 |
 
 出错时 stderr 只有一行中文说明。脚本不写被讲解项目的任何文件和 git 状态；唯一的网络访问是 `gh api`（见 `links`），`--offline` 关掉。
@@ -38,6 +38,15 @@ spec-guard 现有的只读接口给不出模块的提交列表，所以按它公
 - 不按 spec-guard 格式写「（gate）」的 todo，会落到进行中的兜底。
 
 spec-guard 若提供权威的模块提交接口，改用接口，本规则留作后备。
+
+## 里程碑范围怎么推断（`range.source` 为 `inferred-spec-guard-milestone`）
+
+`--milestone <M>` 读 HEAD 上的用法草案（只有一份时不用 `--draft`），取 Milestones 表里 `<M>` 那一行的模块，对每个模块按上一节推断范围，
+再取并集：起点是最早那个模块起点（按 `git rev-list` 的提交顺序）的父提交，终点是最晚那个模块的终点。每个模块自己的范围留在
+`milestone.modules[].range`；推断不出的模块标 `missing`，模块没做完时 `range.inProgress` 为 `true`。
+
+**已知局限**：两个模块之间夹着别的里程碑的提交时，并集会把它们算进来；改了这一站以外模块 spec／tasks 文件的提交会进 `warnings`，
+只改共用代码的发现不了。
 
 ## 渲染脚本读哪些字段
 
@@ -73,9 +82,9 @@ spec-guard 若提供权威的模块提交接口，改用接口，本规则留作
 | `range` | object | 讲解的提交范围 |
 | `range.base` | string \| null | 范围起点之前的提交（不含）；`null` 表示从根提交开始 |
 | `range.head` | string | 范围终点（含） |
-| `range.source` | string | `explicit`（`--range`）或 `inferred-spec-guard`（`--module`） |
-| `range.inProgress` | bool | 推断时一个 gate 都没勾上；`--range` 时恒为 `false` |
-| `range.basis` | object \| null | 推断依据；`--range` 时为 `null` |
+| `range.source` | string | `explicit`（`--range`）、`inferred-spec-guard`（`--module`）或 `inferred-spec-guard-milestone`（`--milestone`） |
+| `range.inProgress` | bool | 推断时一个 gate 都没勾上（`--milestone`：任一模块没做完）；`--range` 时恒为 `false` |
+| `range.basis` | object \| null | 推断依据；`--range` 与 `--milestone` 时为 `null`（里程碑的依据在 `milestone.modules[].range.basis`） |
 | `range.basis.start` | object | 起点 |
 | `range.basis.start.sha` | string | 起点提交 |
 | `range.basis.start.rule` | string | 起点规则的中文说明 |
@@ -162,6 +171,33 @@ spec-guard 若提供权威的模块提交接口，改用接口，本规则留作
 | `usageDraft.entries` | object[] | 归本模块的入口 |
 | `usageDraft.entries[].entry` | string | 入口（去掉反引号） |
 | `usageDraft.entries[].does` | string | 做什么 |
+
+### milestone、codeMap（只在 `--milestone` 时出现；其他两种用法的输出里没有这两个键）
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `milestone` | object | 里程碑事实 |
+| `milestone.id` | string | 里程碑编号，如 `M1` |
+| `milestone.draft` | string | 读的用法草案路径 |
+| `milestone.usages` | object[] | 这一站的典型用法 |
+| `milestone.usages[].id` | string | 用法编号，如 `U1` |
+| `milestone.usages[].title` | string | 草案里 `### U1: <标题>` 的标题；没有这一节时为空串 |
+| `milestone.confirmed` | bool | 草案里有没有 spec-guard 的里程碑确认行 |
+| `milestone.modules` | object[] | 这一站的模块，按草案里的顺序 |
+| `milestone.modules[].id` | string | 模块 id |
+| `milestone.modules[].responsibility` | string | 能力图里的职责；不在能力图上时为空串 |
+| `milestone.modules[].status` | string | `done`、`inProgress` 或 `missing`（推断不出范围） |
+| `milestone.modules[].range` | object \| null | 这个模块自己的范围；`missing` 时为 `null` |
+| `milestone.modules[].range.base` | string \| null | 同 `range.base` |
+| `milestone.modules[].range.head` | string | 同 `range.head` |
+| `milestone.modules[].range.inProgress` | bool | 同 `range.inProgress` |
+| `milestone.modules[].range.basis` | object | 结构同 `range.basis`（`--module` 时的推断依据） |
+| `codeMap` | object[] | 终点提交上的目录汇总，按路径排序；路径取前两层目录（只有一层目录的取这一层，根下文件为 `.`） |
+| `codeMap[].path` | string | 目录 |
+| `codeMap[].added` | int | 范围内新增的文件数（含重命名、复制后的新路径） |
+| `codeMap[].modified` | int | 范围内修改的文件数 |
+| `codeMap[].unchanged` | int | 终点上存在、范围内没改的文件数 |
+| `codeMap[].deleted` | int | 范围内删除的文件数（终点上已不存在） |
 
 ### links
 

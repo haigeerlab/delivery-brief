@@ -86,6 +86,12 @@ def list_dir(project, rev, path):
     return [name for name in _decode(proc.stdout).split("\x00") if name]
 
 
+def list_files(project, rev):
+    """Every file path in the tree of rev."""
+    raw = run(project, "ls-tree", "-r", "-z", "--name-only", rev).stdout
+    return [path for path in _decode(raw).split("\x00") if path]
+
+
 def commit_info(project, sha):
     subject, date = text(project, "show", "--no-patch", "--format=%s%x00%cI", sha).rstrip("\n").split("\x00")
     raw = run(project, "diff-tree", "--no-commit-id", "-r", "-z", "--name-only", "--root", "-M", sha).stdout

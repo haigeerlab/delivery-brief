@@ -197,6 +197,28 @@ def usage_facts(root, module_id, warnings):
     return facts_specguard.usage_for_module(drafts, module_id, warnings) if drafts else None
 
 
+def _map_group(path):
+    """Code map bucket: the first two directories of a deep path, the first of a two-part one, "." at the root."""
+    parts = path.split("/")
+    return "/".join(parts[:2]) if len(parts) > 2 else parts[0] if len(parts) == 2 else "."
+
+
+def code_map(root, head, files):
+    """Per-directory counts of added / modified / unchanged / deleted files at the end commit (milestone pages)."""
+    status = {f["path"]: f["status"] for f in files}
+    groups = {}
+    def bump(path, key):
+        group = groups.setdefault(_map_group(path), {"added": 0, "modified": 0, "unchanged": 0, "deleted": 0})
+        group[key] += 1
+    for path in facts_git.list_files(root, head):
+        code = status.get(path)
+        bump(path, "added" if code in ("A", "R", "C") else "modified" if code in ("M", "T") else "unchanged")
+    for path, code in status.items():
+        if code == "D":
+            bump(path, "deleted")
+    return [dict(path=path, **groups[path]) for path in sorted(groups)]
+
+
 def _draft_for(root, wanted):
     """(path, text) of the usage draft to read; one draft needs no --draft, several do."""
     drafts = ["spec/usage/" + name for name in facts_git.list_dir(root, "HEAD", "spec/usage") if name.endswith(".md")]
@@ -309,6 +331,7 @@ def collect(args):
     }
     if milestone is not None:
         result["milestone"] = milestone
+        result["codeMap"] = code_map(root, range_info["head"], files)
     return result
 
 

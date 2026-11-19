@@ -140,6 +140,30 @@ class MilestoneRangeTest(MilestoneCase):
         self.assertTrue(any(w.startswith("模块 delta：") for w in facts["warnings"]), facts["warnings"])
 
 
+class CodeMapTest(MilestoneCase):
+    def test_code_map_counts(self):
+        self.build()
+        groups = {g["path"]: g for g in self.facts("--milestone", "M1", "--offline")["codeMap"]}
+        def counts(path):
+            g = groups[path]
+            return (g["added"], g["modified"], g["unchanged"], g["deleted"])
+        self.assertEqual(counts("."), (0, 0, 1, 0))
+        self.assertEqual(counts("old"), (0, 1, 1, 1))
+        self.assertEqual(counts("src/alpha"), (1, 0, 0, 0))
+        self.assertEqual(counts("src/beta"), (1, 0, 0, 0))
+        self.assertEqual(counts("spec"), (2, 0, 1, 0))
+        self.assertEqual(counts("spec/usage"), (0, 0, 1, 0))
+        self.assertEqual(counts("tasks/alpha"), (2, 0, 0, 0))
+        self.assertNotIn("src/gamma", groups)
+        self.assertEqual(list(groups), sorted(groups))
+
+    def test_module_facts_have_no_milestone_fields(self):
+        self.build()
+        facts = self.facts("--module", "alpha", "--offline")
+        self.assertNotIn("codeMap", facts)
+        self.assertNotIn("milestone", facts)
+
+
 class MilestoneErrorTest(MilestoneCase):
     def test_bad_milestone_id(self):
         self.build()
