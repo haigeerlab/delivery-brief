@@ -6,7 +6,7 @@
 - [x] Task 3：渲染脚本 — `render_brief.py`：样式取自定稿样张（浅色／深色、手机宽度、Mermaid CDN `mermaid@11.4.1`）；页头（项目、范围与「推断／指定」标签、提交数、文件数与增删、「进行中／已发版」、生成时间）、warnings 与本机工作区不一致提示、附录文件表与提交表全部取自 facts；源文件的一级标题作页面标题、二级标题前的段落作摘要框、第一个 `<details>` 渲染成术语表；引用按 `links` 生成 GitHub 行号链接或 `vscode://` 加文件链接；`[[out:O1]]` 链到实跑输出块；HTML 全部转义，不支持写法原样显示。`test_render.py` 12 例，实现前 12 例失败，实现后通过。范围内补充：检查脚本对没有标题的 mermaid 图出提醒（+1 例）。82 例全过（两个 Python 版本）。
 - [x] Task 4：讲解规则与命令文件 — `references/brief-rules.md`（读者与目标、事实从哪来、读取策略、源文件格式模板、六节各写什么、证据硬规则、选图规则、术语小注）；`commands/brief.md`（参数与输出位置、收集事实与退出码处理、先报规模且 `size.diffBytes` 超过 200000 才停下问、实跑只在 `git archive` 临时目录、检查最多两轮、渲染后自动打开与 `--no-open`、前后比对目标项目的 status 与 ref）。`test_rules_doc.py` 6 例：命令里用到的每个参数都在对应脚本 `--help` 里、模板六节与检查脚本一致、阈值与临时目录写法在场；88 例全过。`claude plugin validate .` 通过（目录上架检查缺 LICENSE、README 字数，留到 M1）。
 - [x] Task 5：文档 — `docs/facts-schema.md` 加「渲染脚本读哪些字段」一节（页头、提示框、引用链接、附录、页脚，以及检查脚本另读的字段）；`test_schema_doc.py` 仍通过（新段落不是字段表行，不影响比对）。
-- [ ] Checkpoint 1（report）：完整检查
+- [x] Checkpoint 1（report）：完整检查 — 主机 macOS 27.2 arm64：88 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过。
 - [ ] Task 6：真实生成一：spec-guard usage-draft
 - [ ] Task 7：真实生成二：本仓库 brief-facts
 - [ ] Checkpoint 2（gate）：最终验收
