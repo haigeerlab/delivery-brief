@@ -15,4 +15,4 @@
 - [x] Task 10：终点之后只改代码的提交进 `laterCodeOnlyCommits` 与 warnings（返工）— `brief_facts.later_code_only_commits`；字段文档补字段与局限，`check_brief.py` 允许正文出现这些提交号。`test_module_range.py` 新增 2 例（有一个补代码提交、之后接 beta 的提交不算；没有时为空列表），实现前报错；字段文档测试先红后绿。
 - [x] Task 11：收紧只读与报错测试（返工）— 快照加工作区与 `.git` 下每个文件的内容摘要（`.git/index` 除外）；非仓库目录也做快照；`assertOneLineError` 断言含中文。变异（草稿副本里收集脚本只追加 `.git/description`，status、ref、log 都不变）：新夹具 `test_range` 6 例变红，旧夹具下这些用例照常通过。
 - [x] 返工检查（report）— 112 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过；对本仓库实跑 `--module brief-facts`（联网）：范围（根）..`ba73323c`、10 个提交、22 个文件 +1792/−0，与 0.1.0 相同；`laterCodeOnlyCommits` 为空（终点后第一个提交就是 module-brief 的 Spec）；链接为 GitHub；本仓库工作区只有本次改动。README「已知问题（0.1.0）」改为「0.1.1 修了什么」，`plugin.json` 版本 0.1.1。
-- [ ] Checkpoint 3（gate）：返工验收与 0.1.1 发版授权
+- [x] Checkpoint 3（gate）：返工验收与 0.1.1 发版授权 — 2026-11-19 用户「验收通过；1 A；2 A」：推送 `main`，在 `2a7cb7e` 上打 `v0.1.1` 并推送；拟回告原文同意发送。
