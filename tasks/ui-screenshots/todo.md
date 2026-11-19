@@ -1,6 +1,6 @@
 # Todo: ui-screenshots
 
-- [ ] Task 0：提交 Plan 与 todo
+- [x] Task 0：提交 Plan 与 todo — 2026-11-19 用户批准 Plan（「批准」）。
 - [ ] Task 1：截图块的解析与检查
 - [ ] Task 2：截图脚本
 - [ ] Task 3：渲染截图
