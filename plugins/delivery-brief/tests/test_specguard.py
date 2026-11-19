@@ -97,6 +97,13 @@ class SpecTest(unittest.TestCase):
         self.assertEqual(facts["acs"][0]["text"], "第一条，续行也算这条。")
         self.assertEqual(facts["acs"][1]["text"], "第二条")
 
+    def test_ac_with_parenthetical_note(self):
+        text = ("## 成功标准\n\n- AC9（2026-11-19 修订）：修订加的一条\n- **AC3**（补）: 半角冒号\n"
+                "- AC4 (note): 半角括号\n- AC5（没有冒号的行不算）\n")
+        acs = sg.parse_spec(text)["acs"]
+        self.assertEqual([ac["id"] for ac in acs], ["AC9", "AC3", "AC4"])
+        self.assertEqual([ac["text"] for ac in acs], ["修订加的一条", "半角冒号", "半角括号"])
+
     def test_continuation_stops_at_blank_line_and_section(self):
         text = "## 成功标准\n\n- AC1：最后一条\n\n## 文档建议\n\n- 本模块的文档：术语表\n  加一句。\n"
         self.assertEqual(sg.parse_spec(text)["acs"], [{"id": "AC1", "text": "最后一条"}])

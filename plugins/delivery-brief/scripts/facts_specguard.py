@@ -7,7 +7,7 @@ import re
 
 FENCE = re.compile(r"^\s*(```|~~~)")
 MARKER = re.compile(r"<!--\s*spec-guard:\s*review\s+(pending|approved(?:\s+[0-9a-f]+)?)\s*-->")
-AC_LINE = re.compile(r"^\s*[-*]\s*\**(AC\d+)\**\s*[:：]\s*(.*)$")
+AC_LINE = re.compile(r"^\s*[-*]\s*\**(AC\d+)\**\s*(?:[（(][^）)]*[）)]\s*)?[:：]\s*(.*)$")
 TODO_LINE = re.compile(r"^[-*]\s+\[([ xX])\]\s+(.*)$")
 GATE = re.compile(r"[（(]\s*gate\s*[)）]")
 REPORT = re.compile(r"[（(]\s*report\s*[)）]")

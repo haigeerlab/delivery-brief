@@ -146,3 +146,20 @@
 
 - 两个 Python 版本全部测试；`claude plugin validate .`；对本仓库重跑 `--module brief-facts` 看 warnings。
 - 呈现：每条已知问题的修法与证据、改动表；之后问发 0.1.1（推送、打标签各问一次）。
+
+## 返工（AC 编号后带括注）
+
+2026-11-20 生成 module-brief 模块页时发现，用户「在这里修」：module-brief 的 Spec 把修订加的验收写成
+`- AC9（2026-11-19 修订）：…`，`AC_LINE` 要求编号后紧跟冒号，这条没进 `module.spec.acs`，检查脚本也就不要求讲解的 AC 表写它。
+属于本模块已批准的 AC4（`module` 给出 AC 列表），在本模块内返工，不开新模块、不重新交审。
+
+### Task 12：AC 编号后可带括注（AC4）
+
+- 文件：`scripts/facts_specguard.py`、`tests/test_specguard.py`。
+- 做法：`AC_LINE` 允许编号（及粗体）后跟一段全角或半角括号括起的括注，再接冒号；括注不进 `text`。
+- 用例：`- AC9（2026-11-19 修订）：…` 与 `- **AC3**（补）: …` 都解析出编号和正文；没有冒号的行仍不算。
+
+### Checkpoint 4（gate）：返工验收
+
+- 两个 Python 版本全部测试；对本仓库跑 `--module module-brief`，`module.spec.acs` 有 AC9。
+- 发版另问。

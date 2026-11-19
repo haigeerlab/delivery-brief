@@ -16,3 +16,5 @@
 - [x] Task 11：收紧只读与报错测试（返工）— 快照加工作区与 `.git` 下每个文件的内容摘要（`.git/index` 除外）；非仓库目录也做快照；`assertOneLineError` 断言含中文。变异（草稿副本里收集脚本只追加 `.git/description`，status、ref、log 都不变）：新夹具 `test_range` 6 例变红，旧夹具下这些用例照常通过。
 - [x] 返工检查（report）— 112 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过；对本仓库实跑 `--module brief-facts`（联网）：范围（根）..`ba73323c`、10 个提交、22 个文件 +1792/−0，与 0.1.0 相同；`laterCodeOnlyCommits` 为空（终点后第一个提交就是 module-brief 的 Spec）；链接为 GitHub；本仓库工作区只有本次改动。README「已知问题（0.1.0）」改为「0.1.1 修了什么」，`plugin.json` 版本 0.1.1。
 - [x] Checkpoint 3（gate）：返工验收与 0.1.1 发版授权 — 2026-11-19 用户「验收通过；1 A；2 A」：推送 `main`，在 `2a7cb7e` 上打 `v0.1.1` 并推送；拟回告原文同意发送。
+- [x] Task 12：AC 编号后可带括注（返工，见 plan「返工（AC 编号后带括注）」）— `AC_LINE` 允许编号（及粗体）后跟一段全角或半角括号的括注再接冒号，括注不进 `text`。`test_specguard.py` 新增 1 例（全角括注、粗体加括注加半角冒号、半角括号、没有冒号的行不算），实现前失败（解析不出编号、退回成无编号条目），实现后 176 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各过一次。实测本仓库：`--module module-brief` 的 AC 由 AC1～AC8 变为 AC1～AC9；brief-facts、cross-check、ui-screenshots、milestone-brief 解析出的 AC 不变；用新 facts 复检刚生成的 module-brief 讲解页 0 错误 0 提醒。
+- [ ] Checkpoint 4（gate）：返工验收
