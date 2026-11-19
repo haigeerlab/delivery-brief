@@ -26,7 +26,11 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py" --project "$PROJECT" -
 ```
 
 - 退出码非 0 时，原样转述 stderr 那一行并停下：2 是参数错，3 是范围解析不了（不是 spec-guard 项目时提示改用 `<base>..<head>`），4 是 git 出错。
-- 记下目标项目的 `git status --porcelain` 与 `git for-each-ref` 输出，最后一步要比对。
+- 记下目标项目的状态，最后一步要比对：
+
+```bash
+git -C "$PROJECT" status --porcelain > "$OUT/.$NAME.before"; git -C "$PROJECT" for-each-ref >> "$OUT/.$NAME.before"
+```
 
 ## 2. 先报给用户，必要时停下
 
@@ -39,7 +43,8 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py" --project "$PROJECT" -
 ## 3. 读代码，写讲解源文件
 
 - 按讲解规则的读取策略读，写 `$OUT/$NAME.md`。格式、六节各写什么、证据硬规则、选图规则都以讲解规则为准。
-- 需要实跑输出时，在临时目录里跑，**不在目标项目里跑**：
+- 需要实跑输出时，在临时目录里跑，**不在目标项目里跑**。在导出的临时目录里跑目标项目自己的测试或命令不用先问
+  （它不碰项目本身），跑完删掉临时目录：
 
 ```bash
 TMP="$(mktemp -d)"
@@ -47,7 +52,8 @@ git -C "$PROJECT" archive <range.head> | tar -x -C "$TMP"
 # 在 "$TMP" 里跑测试或命令；跑完 rm -rf "$TMP"
 ```
 
-  需要装依赖或联网才能跑的，不跑，在「需要你判断的」里写「没有实跑（原因）」。
+  先看项目怎么跑测试（README、Spec 的「命令」一节、CI 配置）。要装依赖（`npm install`、`pip install` 等）或联网才能跑的，不跑，
+  在「需要你判断的」里写「没有实跑（原因）」。
 
 ## 4. 检查
 
@@ -55,7 +61,8 @@ git -C "$PROJECT" archive <range.head> | tar -x -C "$TMP"
 python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/check_brief.py" --facts "$OUT/$NAME.facts.json" --source "$OUT/$NAME.md"
 ```
 
-- 退出码 1：按报告逐条修改讲解源文件再检查，**最多改两轮**。两轮后仍有错误，停下，把报告原样给用户，问是否照样渲染。
+- 退出码 1：按报告逐条修改讲解源文件再检查。**最多检查三次**（第一次检查加两轮修改后的复检；第一次检查前你自己的修改不算）。
+  第三次仍有错误，停下，把报告原样给用户，问是否照样渲染。
 - 提醒（`warn`）不挡渲染，但能改就改；图没有标题的提醒要改。
 
 ## 5. 渲染并打开
@@ -65,7 +72,11 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/render_brief.py" --facts "$OUT/$NAME.f
 ```
 
 - 没给 `--no-open` 且有 `open` 命令时，`open "$OUT/$NAME.html"`；否则只给路径。
-- 再取一次目标项目的 `git status --porcelain` 与 `git for-each-ref`，和第 1 步比对；不一致就如实告诉用户哪里变了。
+- 再取一次目标项目的状态，和第 1 步比对，比完删掉记录文件；不一致就如实告诉用户哪里变了：
+
+```bash
+{ git -C "$PROJECT" status --porcelain; git -C "$PROJECT" for-each-ref; } | diff "$OUT/.$NAME.before" - && rm "$OUT/.$NAME.before"
+```
 
 ## 6. 回复用户
 

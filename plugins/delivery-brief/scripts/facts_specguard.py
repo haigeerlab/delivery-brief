@@ -40,6 +40,11 @@ def _names(value):
             if item.strip().strip("`").strip() not in ("", "—", "-", "–")]
 
 
+def _unquote(cell):
+    """Drop the backticks only when the whole cell is one code span."""
+    return cell[1:-1] if re.match(r"^`[^`]+`$", cell) else cell
+
+
 def _table_after(lines, header):
     """Rows of the first table whose header matches (case-insensitive)."""
     wanted = [h.lower() for h in header]
@@ -87,13 +92,16 @@ def parse_spec(text):
         if match:
             marker = " ".join(match.group(1).split())
             break
-    acs = []
+    acs, open_ac = [], False
     for line in visible_lines(text):
         match = AC_LINE.match(line)
         if match:
             acs.append({"id": match.group(1), "text": match.group(2).strip()})
-        elif acs and line.startswith((" ", "\t")) and line.strip() and not line.strip().startswith(("-", "*")):
+            open_ac = True
+        elif open_ac and line.startswith((" ", "\t")) and line.strip() and not line.strip().startswith(("-", "*")):
             acs[-1]["text"] += line.strip()
+        else:
+            open_ac = False
     numbered = bool(acs)
     if not acs:
         lines = visible_lines(text)
@@ -136,7 +144,7 @@ def usage_for_module(drafts, module_id, warnings=None):
                     "file": label,
                     "milestone": milestone.strip("`"),
                     "usages": _names(usage),
-                    "entries": [{"entry": entry.strip("`"), "does": does}
+                    "entries": [{"entry": _unquote(entry), "does": does}
                                 for entry, does, owners in entries if module_id in _names(owners)],
                 }
     return None

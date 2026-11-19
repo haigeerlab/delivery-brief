@@ -97,6 +97,10 @@ class SpecTest(unittest.TestCase):
         self.assertEqual(facts["acs"][0]["text"], "第一条，续行也算这条。")
         self.assertEqual(facts["acs"][1]["text"], "第二条")
 
+    def test_continuation_stops_at_blank_line_and_section(self):
+        text = "## 成功标准\n\n- AC1：最后一条\n\n## 文档建议\n\n- 本模块的文档：术语表\n  加一句。\n"
+        self.assertEqual(sg.parse_spec(text)["acs"], [{"id": "AC1", "text": "最后一条"}])
+
     def test_unnumbered_success_criteria(self):
         facts = sg.parse_spec("# S\n\n## 成功标准\n\n- 第一条\n  续行\n- 第二条\n\n## 待定问题\n\n- 无。\n")
         self.assertFalse(facts["numbered"])
@@ -130,6 +134,11 @@ class UsageTest(unittest.TestCase):
         self.assertEqual(found["milestone"], "M2")
         self.assertEqual(found["usages"], ["U1", "U2"])
         self.assertEqual(found["entries"], [{"entry": "/demo show", "does": "展示"}])
+
+    def test_entry_with_code_and_text_keeps_backticks(self):
+        draft = USAGE.replace("| `/demo show` | 展示 | beta, gamma |", "| `/demo show` 预览 | 展示 | beta, gamma |")
+        found = sg.usage_for_module({"spec/usage/demo.md": draft}, "beta")
+        self.assertEqual(found["entries"][0]["entry"], "`/demo show` 预览")
 
     def test_module_not_in_any_draft(self):
         self.assertIsNone(sg.usage_for_module({"spec/usage/demo.md": USAGE}, "delta"))

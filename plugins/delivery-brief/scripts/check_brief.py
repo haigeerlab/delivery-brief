@@ -71,6 +71,9 @@ class Checker:
             self.check_route(found["阅读路线"])
         if "需要你判断的" in found:
             self.check_judgements(found["需要你判断的"])
+        if "附录" in found and md.output_blocks(found["附录"]):
+            self.error("附录", "实跑输出块 %s 放在附录里：附录由脚本生成，这些块不会显示；放到第一次引用它的地方之后"
+                       % "、".join(sorted(md.output_blocks(found["附录"]))))
         if "附录" in found and any(b["type"] != "paragraph" for b in found["附录"]):
             self.warn("附录", "附录由渲染脚本从 facts 生成，这里写的表格、列表不会显示，只留一行占位即可")
         self.check_commit_ids()

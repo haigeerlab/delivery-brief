@@ -156,6 +156,11 @@ class CheckTest(CheckCase):
         code, _errors, warnings = self.check(GOOD.replace("### L2 计划", "```mermaid 入口只调一个脚本\nflowchart LR\n  A --> B\n```\n\n### L2 计划"))
         self.assertEqual(warnings, [])
 
+    def test_output_block_in_appendix_is_an_error(self):
+        source = GOOD.replace("```output O1\n$ python3 src/a.py\na\n```\n\n", "")
+        source = source.replace("（由脚本生成）", "（由脚本生成）\n\n```output O1\n$ python3 src/a.py\na\n```")
+        self.assertError(source, "附录", "O1")
+
     def test_appendix_content_is_warned(self):
         code, _errors, warnings = self.check(GOOD.replace("（由脚本生成）", "| a | b |\n|---|---|\n| 1 | 2 |"))
         self.assertEqual(code, 0)
