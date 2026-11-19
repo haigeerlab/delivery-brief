@@ -14,6 +14,8 @@ allowed-tools: Bash, Read, Write, Edit
 cat "${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"
 ```
 
+删除文件时目标一律写成 `"${变量:?}/…"`：变量为空时 shell 直接报错，不会删到根目录（Claude Code 也会拒绝没有这样写的删除）。
+
 ## 1. 解析参数并收集事实
 
 - 第一个参数含 `..` 时是提交段（`--range`），否则是模块 id（`--module`）。`--project` 缺省为当前目录所在 git 仓库的根目录。
@@ -46,14 +48,14 @@ git -C "$PROJECT" status --porcelain > "$OUT/.$NAME.before"; git -C "$PROJECT" f
 
 ## 3. 读代码，写讲解源文件
 
-- 按讲解规则的读取策略读，写 `$OUT/$NAME.md`。同名文件已存在时先 `rm -rf "$OUT/$NAME.md" "$OUT/$NAME.html" "$OUT/$NAME.shots"` 再写，不读旧文件。格式、六节各写什么、证据硬规则、选图规则都以讲解规则为准。
+- 按讲解规则的读取策略读，写 `$OUT/$NAME.md`。同名文件已存在时先 `rm -rf "${OUT:?}/${NAME:?}.md" "${OUT:?}/${NAME:?}.html" "${OUT:?}/${NAME:?}.shots"` 再写，不读旧文件。格式、六节各写什么、证据硬规则、选图规则都以讲解规则为准。
 - 需要实跑输出时，在临时目录里跑，**不在目标项目里跑**。在导出的临时目录里跑目标项目自己的测试或命令不用先问
   （它不碰项目本身）；为验证边界可以在临时目录里增改文件，讲解里写明输入是构造的。跑完删掉临时目录：
 
 ```bash
 TMP="$(mktemp -d)"
 git -C "$PROJECT" archive <range.head> | tar -x -C "$TMP"
-# 在 "$TMP" 里跑测试或命令；跑完 rm -rf "$TMP"
+# 在 "$TMP" 里跑测试或命令；跑完 rm -rf "${TMP:?}"
 ```
 
   先看项目怎么跑测试（README、Spec 的「命令」一节、CI 配置）。要装依赖（`npm install`、`pip install` 等）或联网才能跑的，不跑，
@@ -156,7 +158,7 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/take_screenshots.py" --source "$OUT/$N
 
 ```bash
 kill -- "-$PGID" 2>/dev/null; sleep 3; kill -9 -- "-$PGID" 2>/dev/null
-rm -rf "$SHOT_TMP"
+rm -rf "${SHOT_TMP:?}"
 lsof -nP -iTCP:"$PORT" -sTCP:LISTEN || echo "端口已释放"
 ```
 
@@ -179,7 +181,7 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/render_brief.py" --facts "$OUT/$NAME.f
 - 再取一次目标项目的状态，和第 1 步比对，比完删掉记录文件；不一致就如实告诉用户哪里变了：
 
 ```bash
-{ git -C "$PROJECT" status --porcelain; git -C "$PROJECT" for-each-ref; } | diff "$OUT/.$NAME.before" - && rm "$OUT/.$NAME.before"
+{ git -C "$PROJECT" status --porcelain; git -C "$PROJECT" for-each-ref; } | diff "$OUT/.$NAME.before" - && rm "${OUT:?}/.${NAME:?}.before"
 ```
 
 中途停下（任何一步退出码非 0、等用户答复）时，先删掉 `$OUT/.$NAME.before`，答复后重新开始时再从第 1 步记。

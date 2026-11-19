@@ -60,6 +60,17 @@ class CrossCheckDocsTest(unittest.TestCase):
         self.assertIn("--cross-check", help_text("render_brief.py"))
 
 
+class SafeRemovalTest(unittest.TestCase):
+    def test_every_rm_target_is_guarded(self):
+        """Claude Code refuses `rm` whose target is a bare "$VAR/..." (empty VAR -> /); use ${VAR:?}."""
+        found = 0
+        for line in COMMAND.splitlines():
+            for target in re.findall(r"\brm (?:-[a-z]+ )*((?:\"[^\"]*\"\s*)+)", line):
+                found += 1
+                self.assertNotRegex(target, r"\$(?!\{)[A-Z_]", "unguarded rm target: %s" % line.strip())
+        self.assertGreater(found, 0)
+
+
 class ScreenshotDocsTest(unittest.TestCase):
     def test_command_screenshot_flow(self):
         hint = COMMAND.split("argument-hint:")[1].splitlines()[0]
