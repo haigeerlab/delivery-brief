@@ -40,3 +40,4 @@
 | M3 | U1, U2, U3 | milestone-brief |
 
 <!-- spec-guard: milestone M1 confirmed brief-facts, module-brief, cross-check -->
+<!-- spec-guard: milestone M2 confirmed ui-screenshots -->
