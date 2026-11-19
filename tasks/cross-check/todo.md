@@ -13,6 +13,9 @@
   - 偏离 Spec：假设 8 估的约 10 万输入 token 实测为 22.4 万；命令文件的预计花费已改为「约 10～25 万」，Spec 的修订在最终验收时交审。
 - [x] Task 5：M1 发版准备 — README 从用法草案展开写全（六问、安装、两种参数与三个选项、输出位置、范围推断与局限、不做什么、开发、后续计划）并附讲解页截图 `docs/images/brief-example.jpg`（取页面顶部，不含本机临时路径）；MIT `LICENSE`；`plugin.json` 版本 0.1.0、`license: MIT`；两份清单的描述改为只说已有的模块讲解页（里程碑页属 M3）。`claude plugin validate .` 通过；`--profile directory` 通过（只剩缺图标的提醒）。README 链到的 delegate-plugin、spec-guard-plugin 均为公开仓库。107 例两个 Python 版本通过。
 - [x] Checkpoint 2（gate）：本机安装插件 — 2026-11-19 用户「同意安装」。`claude plugin marketplace add <本仓库>` 与 `claude plugin install delivery-brief@delivery-brief-marketplace` 成功；读回：版本 0.1.0、scope user、已启用，直接读本仓库 `plugins/delivery-brief`（本机目录来源，改仓库即生效）。
-- [ ] Task 6：端到端两次
+- [x] Task 6：端到端两次 — 用户在新会话里依次运行 `/delivery-brief:brief brief-facts` 与 `/delivery-brief:brief brief-facts --cross-check`（用户报告「跑完了」）。
+  - 第二次覆盖了第一次，现存产物是第二次的：facts 范围（根）..`ba73323c`、10 个提交、22 个文件 +1792/−0；`check_brief.py` 复检 0 错误 0 提醒；核对记录 complete、codex、审查 23／23 个文件、10 条发现全部 confirmed；页脚摘要与附录核对记录都在。第一次运行的产物已被覆盖，只有用户的口头确认，未独立核对。
+  - 本仓库工作区干净、最新提交仍是本会话的，没有被插件写入；输出目录无残留的记录文件或材料目录。
+  - 抽查一条 confirmed：路径不是 UTF-8 时 `facts_git.commit_info` 严格解码（facts_git.py:L86），`brief_facts.py` 只接三类异常——用 git 索引造出这种路径实测，`--range` 抛 `UnicodeDecodeError` 堆栈、退出 1，违反 brief-facts 的 AC8；成立。这批针对 brief-facts 代码的发现留到最终验收由用户定怎么处理。
 - [ ] Checkpoint 3（gate）：最终验收与发版授权
 - [ ] 发版（按 Checkpoint 3 的授权）
