@@ -1,5 +1,5 @@
 ---
-description: "生成模块或一段提交的讲解页：几分钟看懂这次造了什么、怎么串起来、哪里要人判断"
+description: "生成模块、一段提交或一个里程碑的讲解页：几分钟看懂这次造了什么、怎么串起来、哪里要人判断"
 argument-hint: "<模块 id | base..head | --milestone <M> [--draft <草案>]> [--project <dir>] [--no-open] [--cross-check] [--no-screenshots] [--base-url <地址>]"
 allowed-tools: Bash, Read, Write, Edit
 ---
