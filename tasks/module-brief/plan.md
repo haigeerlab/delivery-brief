@@ -1,6 +1,6 @@
 # Plan: module-brief
 
-<!-- spec-guard: review approved -->
+<!-- spec-guard: review pending -->
 
 依据 [`spec/module-brief.md`](../../spec/module-brief.md)（2026-11-19 用户在本会话批准：「批准；Q1 A；Q2 A」，提交 `91d4ff2`）。
 分支 `main`（本仓库没有远端），串行，在本会话做。本模块不发版：M1 还差 cross-check，发版在 cross-check 验收后。
@@ -125,3 +125,44 @@
 - 验证：先红后绿；用改前改后的渲染脚本渲染真实模块讲解逐字比对；对 next-shadcn 那段提交的讲解改用新写法引用 `page.tsx`，检查通过。
 
 ### Checkpoint 3（gate）：返工验收与 0.3.1 发版授权
+
+## 修订（0.3.2）：少跑几轮
+
+2026-11-19 用户反映讲解太费 token。调研四次真实运行的会话记录：每轮重读的固定上下文约 9.6 万 token，乘以 25～38 轮约占花费的四成；
+HTML 排版由脚本做，不花 token。用户选定只做「减少轮数」（Spec 假设 10、AC9）。超出原批准范围，Spec 与本 Plan 改为待批准重新交审。
+
+### Task 9：合并命令步骤
+
+- 文件：`commands/brief.md`、`tests/test_rules_doc.py`。
+- 做法：
+  - 开头一个「准备」命令块：读讲解规则、跑 `brief_facts.py`、记项目状态、打印 facts，一次调用做完；退出码非 0 的处理不变。
+  - 第 3 步：先按 facts 列出要读的 diff 与片段，分批读，每批一次调用读多个文件，每批输出约 3 万字符以内。
+  - 写讲解源文件后，同一条消息里接着跑检查。
+  - 截图：导出、装依赖、起服务合为一次；截完在同一条消息里看完所有截图；收尾与渲染合为一次。
+  - 第 5 步：渲染、打开、核对项目状态合为一次。
+  - 里程碑页、交叉核对的流程照旧，只套用上面的合并方式。
+- 用例：「准备」块里同时有读规则、`brief_facts.py`、记状态；第 3 步写明分批与每批上限；写源文件与检查写明在同一条消息；
+  渲染块里同时有 `render_brief.py`、`open` 与状态比对；原有的安全删除、参数在 `--help` 里等测试照常通过。
+- 验证：先红后绿；`claude plugin validate .`；两个 Python 版本全部测试。
+
+### Task 10：统计脚本
+
+- 文件：`dev/run_cost.py`（新，不进插件目录）、`tests/test_run_cost.py`。
+- 做法：读一个会话记录，从调用 `/delivery-brief:brief` 的那条消息算到下一条用户消息，输出轮数、首轮上下文、缓存读写、输出 token、工具结果字符数。
+- 用例：用构造的会话记录核对各项计数（同一条回复拆成多行时只算一次）。验收用它算改前四次与改后两次的数。
+
+### Task 11：版本 0.3.2 与 README
+
+- README 版本记录加 0.3.2；`plugin.json` 0.3.2。
+
+### Checkpoint 4（gate）：本机升级插件
+
+- 停下问你；升级后读回版本与提交号，逐文件比对缓存。
+
+### Task 12：重跑两次实测（AC9）
+
+- 你在新会话分别运行 `/delivery-brief:brief 2331c322..cacd0d02 --project ~/Documents/gs/next-shadcn-dashboard-starter` 与
+  `/delivery-brief:brief --milestone M1 --project ~/Documents/haigeerlab/delivery-brief`；我用 `dev/run_cost.py` 算改前改后的数，核对检查结果与被讲解项目不变。
+
+### Checkpoint 5（gate）：修订验收与 0.3.2 发版授权
+

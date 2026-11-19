@@ -21,3 +21,10 @@
   - 改前（`a8c3d0e`）改后渲染三份真实讲解（brief-facts 带交叉核对、next-shadcn 带截图、M1 里程碑页），去掉生成时间后都逐字相同。
   - 实测：把 next-shadcn 那份讲解的副本（scratchpad，不改原产物）里写成代码文字的 `page.tsx` 第 12～19 行改为 ``[[`src/app/auth/sign-in/[[...sign-in]]/page.tsx`:L12-L19]]``，检查 0 错误 0 提醒；改成 L12-L40 时报「行号超出文件行数（19 行）」；渲染出的本机链接为 `…/%5B%5B...sign-in%5D%5D/page.tsx:12`。
 - [x] Checkpoint 3（gate）：返工验收与 0.3.1 发版授权 — 2026-11-19 用户「验收通过；1 A；2 A；3 A；4 A」：推送 `main`、在本提交打 `v0.3.1` 并推送、本机升级到 0.3.1、按拟回告原文告诉 ecosystem-lead。
+- [ ] Task 9：合并命令步骤
+- [ ] Task 10：统计脚本 `dev/run_cost.py`
+- [ ] Task 11：版本 0.3.2 与 README
+- [ ] Checkpoint 4（gate）：本机升级插件
+- [ ] Task 12：重跑两次实测（AC9）
+- [ ] Checkpoint 5（gate）：修订验收与 0.3.2 发版授权
+
