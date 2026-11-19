@@ -11,7 +11,7 @@
   - **和样张对照时漏掉的 3 条全部找回**（没有 python3 时静默跳过、草案目录列不出来时预览报错、add-module 后忘归里程碑不被拦）；另有 7 条新问题（AC2、AC4 证据写过头、`unverified` 的接口细节、顺序诊断点错名字、引错 validate.sh 行、M1 停点的引用版本与上下文、缺不新增交审小项的理由）。
   - 核对记录 `usage-draft.crosscheck.json` 渲染进附录与页脚，浏览器自验显示正确（10 行、页脚摘要、无横向溢出）；材料目录已删除。
   - 偏离 Spec：假设 8 估的约 10 万输入 token 实测为 22.4 万；命令文件的预计花费已改为「约 10～25 万」，Spec 的修订在最终验收时交审。
-- [ ] Task 5：M1 发版准备
+- [x] Task 5：M1 发版准备 — README 从用法草案展开写全（六问、安装、两种参数与三个选项、输出位置、范围推断与局限、不做什么、开发、后续计划）并附讲解页截图 `docs/images/brief-example.jpg`（取页面顶部，不含本机临时路径）；MIT `LICENSE`；`plugin.json` 版本 0.1.0、`license: MIT`；两份清单的描述改为只说已有的模块讲解页（里程碑页属 M3）。`claude plugin validate .` 通过；`--profile directory` 通过（只剩缺图标的提醒）。README 链到的 delegate-plugin、spec-guard-plugin 均为公开仓库。107 例两个 Python 版本通过。
 - [ ] Checkpoint 2（gate）：本机安装插件
 - [ ] Task 6：端到端两次
 - [ ] Checkpoint 3（gate）：最终验收与发版授权
