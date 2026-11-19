@@ -1,6 +1,6 @@
 # Plan: milestone-brief
 
-<!-- spec-guard: review pending -->
+<!-- spec-guard: review approved -->
 
 依据 [`spec/milestone-brief.md`](../../spec/milestone-brief.md)（2026-11-19 用户在本会话批准：「批准；Q1 A；Q2 A」）。
 分支 `main`，串行，在本会话做。本模块完成即 M3 与整个能力图，版本 0.3.0。

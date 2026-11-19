@@ -1,6 +1,6 @@
 # Todo: milestone-brief
 
-- [ ] Task 0：提交 Plan 与 todo
+- [x] Task 0：提交 Plan 与 todo — 2026-11-19 用户批准 Plan（「批准」）。
 - [ ] Task 1：读里程碑行
 - [ ] Task 2：`--milestone` 的范围与 `milestone` 字段
 - [ ] Task 3：`codeMap` 与字段文档
