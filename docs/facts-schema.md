@@ -32,6 +32,8 @@ spec-guard 现有的只读接口给不出模块的提交列表，所以按它公
 
 - 终点之后还改了模块文件的提交（`range.basis.laterModuleCommits`）可能是验收后的发版收尾，也可能是中途 gate 之后接着开发；
   单看 todo 分不开，所以只列出来，不自动算进范围。需要时用 `--range` 指定。
+- 验收之后只改了代码、没改 spec／tasks 文件的提交看不出属于哪个模块：终点之后、下一个改动别的模块 spec／tasks 文件的提交之前，
+  这样的提交列在 `range.basis.laterCodeOnlyCommits`，同样不算进范围。
 - 并行开发时，范围里可能混进别的模块的提交：只能发现改了别的模块 `spec/<id>.md`、`tasks/<id>/` 的提交，改共用代码的发现不了。
 - 不按 spec-guard 格式写「（gate）」的 todo，会落到进行中的兜底。
 
@@ -49,7 +51,7 @@ spec-guard 若提供权威的模块提交接口，改用接口，本规则留作
 - 页脚：`range` 与 `links.reason`。
 
 `check_brief.py` 另读：`project.root` 与 `range.head`（用 `git show` 核对引用）、`module.spec.acs` 与 `acsNumbered`（AC 表是否齐全）、
-`commits`、`range.basis.laterModuleCommits`、`project.head` 与 `module.spec.marker`（正文里允许出现的提交号）。
+`commits`、`range.basis.laterModuleCommits`、`range.basis.laterCodeOnlyCommits`、`project.head` 与 `module.spec.marker`（正文里允许出现的提交号）。
 
 ## 字段
 
@@ -82,6 +84,7 @@ spec-guard 若提供权威的模块提交接口，改用接口，本规则留作
 | `range.basis.end.gate` | string \| null | 终点勾上的 gate（冒号前的文字）；进行中时为 `null` |
 | `range.basis.end.rule` | string | 终点规则的中文说明 |
 | `range.basis.laterModuleCommits` | string[] | 终点之后仍改动模块文件的非合并提交 |
+| `range.basis.laterCodeOnlyCommits` | string[] | 终点之后、下一个模块的 spec／tasks 提交之前，没改任何 `spec/`、`tasks/` 文件的非合并提交（进行中时为空） |
 | `range.basis.openItemsAtHead` | object[] | HEAD 上 todo 里未勾、且不是延期写法的项，字段同 `module.todo.atHead[]` |
 | `range.basis.openItemsAtHead[].text` | string | 同 todo 项 |
 | `range.basis.openItemsAtHead[].checked` | bool | 同 todo 项 |

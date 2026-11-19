@@ -1,4 +1,5 @@
 """Helpers for building throwaway git repositories in tests."""
+import hashlib
 import json
 import os
 import subprocess
@@ -29,7 +30,7 @@ class Repo:
         env = dict(os.environ, **GIT_ENV)
         out = subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=str(self.root), env=env,
                              check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return out.stdout.decode("utf-8")
+        return out.stdout.decode("utf-8", "surrogateescape")
 
     def write(self, path, text):
         target = self.root / path
@@ -51,11 +52,27 @@ class Repo:
         return self.git("rev-parse", "HEAD").strip()
 
     def snapshot(self):
-        """Working tree status and every ref: must not change when the collector runs."""
+        """Working tree status, every ref and every file's content: must not change when the collector runs."""
         return (self.git("status", "--porcelain=v1", "-uall"),
                 self.git("for-each-ref", "--format=%(refname) %(objectname)"),
                 self.git("rev-parse", "--symbolic-full-name", "HEAD"),
-                self.git("log", "-1", "--format=%H", "--all"))
+                self.git("log", "-1", "--format=%H", "--all"),
+                tree_digest(self.root))
+
+
+def tree_digest(root):
+    """Path and content digest of every file under root, .git included except its lock-free index stat noise."""
+    entries = []
+    for dirpath, dirnames, filenames in os.walk(str(root)):
+        dirnames.sort()
+        for name in sorted(filenames):
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, str(root))
+            if rel == os.path.join(".git", "index"):
+                continue
+            with open(path, "rb") as handle:
+                entries.append((rel, hashlib.sha256(handle.read()).hexdigest()))
+    return entries
 
 
 class RepoCase(unittest.TestCase):
@@ -67,15 +84,19 @@ class RepoCase(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def run_cli(self, *args, check_readonly=True):
-        before = self.repo.snapshot() if check_readonly else None
+    def run_cli(self, *args, check_readonly=True, plain_dir=None):
+        """Run the collector; the project (or plain_dir, for a non-repository) must be byte-for-byte unchanged."""
+        before = None
+        if check_readonly:
+            before = tree_digest(plain_dir) if plain_dir else self.repo.snapshot()
         env = dict(os.environ, **GIT_ENV)
         if self.extra_path:
             env["PATH"] = self.extra_path + os.pathsep + env.get("PATH", "")
         proc = subprocess.run([sys.executable, "-B", str(CLI), *args], env=env,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if check_readonly and before is not None:
-            self.assertEqual(before, self.repo.snapshot(), "collector changed the project")
+        if before is not None:
+            after = tree_digest(plain_dir) if plain_dir else self.repo.snapshot()
+            self.assertEqual(before, after, "collector changed the project")
         return proc.returncode, proc.stdout.decode("utf-8"), proc.stderr.decode("utf-8")
 
     def facts(self, *args):
@@ -87,3 +108,4 @@ class RepoCase(unittest.TestCase):
         self.assertEqual(code, expected_code, err)
         self.assertNotIn("Traceback", err)
         self.assertEqual(len(err.strip().splitlines()), 1, err)
+        self.assertRegex(err, "[\u4e00-\u9fff]", "error message is not Chinese: %r" % err)

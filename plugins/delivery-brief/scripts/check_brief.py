@@ -176,7 +176,7 @@ class Checker:
         rng = self.facts["range"]
         allowed += [s for s in (rng["base"], rng["head"], self.facts["project"]["head"]) if s]
         if rng.get("basis"):
-            allowed += rng["basis"].get("laterModuleCommits", [])
+            allowed += rng["basis"].get("laterModuleCommits", []) + rng["basis"].get("laterCodeOnlyCommits", [])
         marker = (self.facts.get("module") or {}).get("spec", {}).get("marker") or ""
         texts = [t[1] for kind in ("text", "code", "bold") for t in md.tokens_of(self.blocks, kind)]
         for text in texts:

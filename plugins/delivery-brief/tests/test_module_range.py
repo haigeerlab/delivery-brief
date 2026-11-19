@@ -104,6 +104,36 @@ class ModuleRangeTest(RepoCase):
         self.assertNotIn(self.release, shas)
         self.assertNotIn("docs/releases/v1.json", [f["path"] for f in facts["files"]])
 
+    def test_code_only_commits_after_end_are_flagged(self):
+        self.finished_alpha()
+        r = self.repo
+        r.write("src/a.py", "print('a2')\n")
+        fix = r.commit("fix: alpha 验收后补的代码")
+        r.write("spec/beta.md", "# Spec: beta\n")
+        r.commit("docs: beta Spec")
+        r.write("src/b.py", "print('b')\n")
+        r.commit("feat: beta 代码")
+        facts = self.facts("--module", "alpha", "--offline")
+        basis = facts["range"]["basis"]
+        self.assertEqual(basis["laterCodeOnlyCommits"], [fix])
+        self.assertEqual(facts["range"]["head"], self.end)
+        self.assertTrue(any("没改任何 spec／tasks 文件" in w and fix[:8] in w for w in facts["warnings"]),
+                        facts["warnings"])
+
+    def test_no_code_only_commits_gives_empty_list(self):
+        self.finished_alpha()
+        facts = self.facts("--module", "alpha", "--offline")
+        self.assertEqual(facts["range"]["basis"]["laterCodeOnlyCommits"], [])
+        self.assertFalse(any("没改任何 spec／tasks 文件" in w for w in facts["warnings"]))
+
+    def test_unreadable_todo_is_a_warning(self):
+        r = self.repo
+        self.base_repo()
+        r.write("spec/alpha.md", SPEC)
+        r.commit("docs: alpha Spec")
+        facts = self.facts("--module", "alpha", "--offline")
+        self.assertTrue(any("读不到 tasks/alpha/todo.md" in w for w in facts["warnings"]), facts["warnings"])
+
     def test_module_facts(self):
         self.finished_alpha()
         module = self.facts("--module", "alpha", "--offline")["module"]

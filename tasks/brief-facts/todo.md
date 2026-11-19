@@ -9,9 +9,10 @@
 - [x] Task 6：文档 — `docs/facts-schema.md`：用法与退出码、范围推断规则与三条已知局限、全部字段表（含 `files[].oldPath` 等可选字段）。`test_schema_doc.py` 比对文档字段与真实输出（模块＋重命名两次运行的并集），两个方向都不许多：初跑发现 4 个文档字段在夹具里没出现（夹具没有未勾项），给夹具补一项未勾后通过；36 例全过（两个 Python 版本）。
 - [x] Checkpoint 1（report）：完整检查与实测 — 主机 macOS 27.2 arm64、git 2.54.0：全部 36 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过。实测 spec-guard 临时克隆（远端 main `291a0c74`，`--offline`）：usage-draft `273faa86`→`70c3b750`、9 个提交、26 个文件 +995/−20；map-extra-columns `c9ee3329`→`e0cfa90a`、6 个提交、14 个文件 +212/−10，与人工核对一致；两次运行前后克隆的工作区与 ref 不变。联网：克隆的 origin 是本机路径，按规则给本机链接；改对 spec-guard 本机仓库跑 `--range 273faa86^..70c3b750`，得 GitHub 链接基址 `…/blob/70c3b750…/`（公开、终点在远端），拼出的 `usage_draft.py` 链接 HTTP 200，该仓库工作区与 ref 不变。变异见 Task 4。观察：usage-draft 的估算 token 为 251685，主要来自被改文件全文（规则文本、module-insert.py 等大文件），module-brief 设计读取策略时要考虑。
 - [x] Checkpoint 2（gate）：最终验收 — 2026-11-19 用户「验收通过」（针对 AC1–AC9 证据、改动表、提交表与 Spec 范围内补充的三个字段和 AC 兜底）。本仓库无远端，不推送。
-- [ ] Task 7：非 UTF-8 路径不抛堆栈（返工，见 plan「返工（0.1.1）」）
-- [ ] Task 8：分开「终点不在远端」与「gh 查询失败」（返工）
-- [ ] Task 9：读不到的文件进 warnings（返工）
-- [ ] Task 10：终点之后只改代码的提交进 `laterCodeOnlyCommits` 与 warnings（返工）
-- [ ] Task 11：收紧只读与报错测试（返工）
+- [x] Task 7：非 UTF-8 路径不抛堆栈（返工，见 plan「返工（0.1.1）」）— `facts_git._decode` 统一用替换字符解码路径输出，`brief_facts.collect` 对含 U+FFFD 的路径记一条「有 N 个路径不是 UTF-8」；`test_range.py` 新增 1 例（git 索引造路径 `bad\xff.txt`），实现前抛 `UnicodeDecodeError` 退出 1，实现后退出 0、warnings 有这一条。
+- [x] Task 8：分开「终点不在远端」与「gh 查询失败」（返工）— `facts_links._gh` 另返回 stderr；只有 `HTTP 404／422` 记「不在远端」，其他写「gh 查询终点提交失败（原因）」。假 gh 加 403 限流分支，`test_links.py` 新增 1 例，实现前失败。
+- [x] Task 9：读不到的文件进 warnings（返工）— 模块 todo 在终点或 HEAD 读不到、用法草案读不到时各记一条；`test_module_range.py` 新增 1 例（只有 Spec 没有 todo），实现前失败。
+- [x] Task 10：终点之后只改代码的提交进 `laterCodeOnlyCommits` 与 warnings（返工）— `brief_facts.later_code_only_commits`；字段文档补字段与局限，`check_brief.py` 允许正文出现这些提交号。`test_module_range.py` 新增 2 例（有一个补代码提交、之后接 beta 的提交不算；没有时为空列表），实现前报错；字段文档测试先红后绿。
+- [x] Task 11：收紧只读与报错测试（返工）— 快照加工作区与 `.git` 下每个文件的内容摘要（`.git/index` 除外）；非仓库目录也做快照；`assertOneLineError` 断言含中文。变异（草稿副本里收集脚本只追加 `.git/description`，status、ref、log 都不变）：新夹具 `test_range` 6 例变红，旧夹具下这些用例照常通过。
+- [x] 返工检查（report）— 112 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过；对本仓库实跑 `--module brief-facts`（联网）：范围（根）..`ba73323c`、10 个提交、22 个文件 +1792/−0，与 0.1.0 相同；`laterCodeOnlyCommits` 为空（终点后第一个提交就是 module-brief 的 Spec）；链接为 GitHub；本仓库工作区只有本次改动。README「已知问题（0.1.0）」改为「0.1.1 修了什么」，`plugin.json` 版本 0.1.1。
 - [ ] Checkpoint 3（gate）：返工验收与 0.1.1 发版授权

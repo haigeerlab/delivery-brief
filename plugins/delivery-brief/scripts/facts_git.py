@@ -1,13 +1,19 @@
 """Read-only git access for brief_facts: commits, numstat, file contents at a revision.
 
 Never writes git state: no fetch, checkout or ref changes. Paths come from -z output so renames,
-spaces and non-ASCII names parse correctly.
+spaces and non-ASCII names parse correctly; bytes that are not UTF-8 become U+FFFD (see BAD_PATH_CHAR).
 """
 import os
 import subprocess
 
 EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 TIMEOUT = 60
+BAD_PATH_CHAR = "\ufffd"
+
+
+def _decode(raw):
+    """git output as text; a path that is not UTF-8 is kept, with U+FFFD for the bad bytes."""
+    return raw.decode("utf-8", "replace")
 
 
 class GitError(Exception):
@@ -43,7 +49,7 @@ def ensure_repo(project):
     proc = run(project, "rev-parse", "--show-toplevel", check=False)
     if proc.returncode != 0:
         raise GitError("不是 git 仓库：%s" % project)
-    return proc.stdout.decode("utf-8").strip()
+    return _decode(proc.stdout).strip()
 
 
 def resolve(project, rev):
@@ -77,18 +83,18 @@ def list_dir(project, rev, path):
     proc = run(project, "ls-tree", "--name-only", "-z", "%s:%s" % (rev, path), check=False)
     if proc.returncode != 0:
         return []
-    return [name for name in proc.stdout.decode("utf-8").split("\x00") if name]
+    return [name for name in _decode(proc.stdout).split("\x00") if name]
 
 
 def commit_info(project, sha):
     subject, date = text(project, "show", "--no-patch", "--format=%s%x00%cI", sha).rstrip("\n").split("\x00")
     raw = run(project, "diff-tree", "--no-commit-id", "-r", "-z", "--name-only", "--root", "-M", sha).stdout
-    files = [p for p in raw.decode("utf-8").split("\x00") if p]
+    files = [p for p in _decode(raw).split("\x00") if p]
     return {"sha": sha, "short": sha[:8], "subject": subject, "date": date, "files": files}
 
 
 def _pairs(raw):
-    return [p for p in raw.decode("utf-8").split("\x00")]
+    return _decode(raw).split("\x00")
 
 
 def numstat(project, base, head):

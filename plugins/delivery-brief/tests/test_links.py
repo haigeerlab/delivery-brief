@@ -9,7 +9,9 @@ from fixtures import RepoCase
 FAKE_GH = """#!/bin/sh
 echo "$*" >> "$FAKE_GH_LOG"
 case "$*" in
-  *"/commits/"*) [ "$FAKE_GH_COMMIT" = "yes" ] && { echo '{}'; exit 0; }; echo 'Not Found' >&2; exit 1 ;;
+  *"/commits/"*) [ "$FAKE_GH_COMMIT" = "yes" ] && { echo '{}'; exit 0; }
+    [ "$FAKE_GH_COMMIT" = "forbidden" ] && { echo 'gh: API rate limit exceeded (HTTP 403)' >&2; exit 1; }
+    echo 'gh: No commit found for SHA: x (HTTP 422)' >&2; exit 1 ;;
   *"repos/"*) [ "$FAKE_GH_FAIL" = "yes" ] && { echo 'auth required' >&2; exit 4; }; echo "$FAKE_GH_VISIBILITY"; exit 0 ;;
 esac
 exit 2
@@ -74,6 +76,13 @@ class LinksTest(RepoCase):
     def test_end_commit_not_on_remote(self):
         os.environ["FAKE_GH_COMMIT"] = "no"
         self.assertLocal(self.links(), "不在远端")
+
+    def test_commit_query_failure_is_not_reported_as_missing(self):
+        os.environ["FAKE_GH_COMMIT"] = "forbidden"
+        links = self.links()
+        self.assertLocal(links, "gh 查询终点提交失败")
+        self.assertNotIn("不在远端", links["reason"])
+        self.assertIn("HTTP 403", links["reason"])
 
     def test_gh_failure(self):
         os.environ["FAKE_GH_FAIL"] = "yes"

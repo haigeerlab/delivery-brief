@@ -92,6 +92,7 @@ def infer_module_range(root, module_id, warnings):
     if in_progress:
         end = touched[-1]
     later = touched[touched.index(end) + 1:] if end in touched else []
+    code_only = [] if in_progress else later_code_only_commits(root, module_id, end)
     open_items = [item for item in facts_specguard.parse_todo(facts_git.show(root, "HEAD", todo_path) or "")
                   if not item["checked"] and not item["deferred"]]
     if in_progress:
@@ -99,15 +100,37 @@ def infer_module_range(root, module_id, warnings):
     elif later:
         warnings.append("终点之后还有 %d 个改动模块文件的提交（%s）没算进范围：可能是发版收尾，也可能是中途 gate 之后的开发；"
                         "需要时用 --range 指定" % (len(later), "、".join(sha[:8] for sha in later)))
+    if code_only:
+        warnings.append("终点之后、下一个模块开始之前，还有 %d 个没改任何 spec／tasks 文件的提交（%s）没算进范围："
+                        "可能是本模块验收后补的代码；需要时用 --range 指定" % (len(code_only), "、".join(sha[:8] for sha in code_only)))
     basis = {
         "start": {"sha": start, "rule": "第一个改动 spec/<id>.md 或 tasks/<id>/ 的非合并提交"},
         "end": {"sha": end, "gate": end_gate,
                 "rule": "最后一个把（gate）检查点勾上、且 HEAD 上仍勾着的提交" if not in_progress
                 else "没有已勾的（gate）检查点，取最后一个改动模块文件的提交"},
         "laterModuleCommits": later,
+        "laterCodeOnlyCommits": code_only,
         "openItemsAtHead": open_items,
     }
     return facts_git.parent(root, start), end, in_progress, basis
+
+
+def later_code_only_commits(root, module_id, end):
+    """Commits after end, before the first one touching another module's spec/tasks files, touching no spec/ or tasks/ file."""
+    found = []
+    for sha in facts_git.commit_shas(root, end, "HEAD"):
+        files = facts_git.commit_info(root, sha)["files"]
+        if any(_other_module(path, module_id) for path in files):
+            break
+        if not any(path.startswith(("spec/", "tasks/")) for path in files):
+            found.append(sha)
+    return found
+
+
+def _other_module(path, module_id):
+    match = OTHER_MODULE_PATH.match(path)
+    name = match and (match.group(1) or match.group(2))
+    return bool(name) and name != module_id
 
 
 def mixed_module_warnings(commits, module_id, known_modules):
@@ -131,6 +154,10 @@ def module_facts(root, module_id, entry, end, warnings):
     if spec_text is None:
         warnings.append("读不到 %s" % spec_path)
     spec = facts_specguard.parse_spec(spec_text or "")
+    todo_end, todo_head = facts_git.show(root, end, todo_path), facts_git.show(root, "HEAD", todo_path)
+    for label, value in (("终点提交", todo_end), ("HEAD", todo_head)):
+        if value is None:
+            warnings.append("读不到 %s（%s 上），todo 按空处理" % (todo_path, label))
     if spec_text is not None and spec["acs"] and not spec["numbered"]:
         warnings.append("%s 的成功标准没有 AC 编号，按条目顺序列出" % spec_path)
     return {
@@ -141,8 +168,8 @@ def module_facts(root, module_id, entry, end, warnings):
         "plan": {"path": "tasks/%s/plan.md" % module_id,
                  "exists": facts_git.show(root, "HEAD", "tasks/%s/plan.md" % module_id) is not None},
         "todo": {"path": todo_path,
-                 "atEnd": facts_specguard.parse_todo(facts_git.show(root, end, todo_path) or ""),
-                 "atHead": facts_specguard.parse_todo(facts_git.show(root, "HEAD", todo_path) or "")},
+                 "atEnd": facts_specguard.parse_todo(todo_end or ""),
+                 "atHead": facts_specguard.parse_todo(todo_head or "")},
     }
 
 
@@ -150,7 +177,11 @@ def usage_facts(root, module_id, warnings):
     drafts = {}
     for name in facts_git.list_dir(root, "HEAD", "spec/usage"):
         if name.endswith(".md"):
-            drafts["spec/usage/" + name] = facts_git.show(root, "HEAD", "spec/usage/" + name) or ""
+            text = facts_git.show(root, "HEAD", "spec/usage/" + name)
+            if text is None:
+                warnings.append("读不到 spec/usage/%s，没有读取这份用法草案" % name)
+                continue
+            drafts["spec/usage/" + name] = text
     return facts_specguard.usage_for_module(drafts, module_id, warnings) if drafts else None
 
 
@@ -177,6 +208,10 @@ def collect(args):
         module = module_facts(root, args.module, known[args.module], head, warnings)
         usage = usage_facts(root, args.module, warnings)
     commits, files, totals, size = range_facts(root, range_info["base"], range_info["head"])
+    bad = sorted({f["path"] for f in files if facts_git.BAD_PATH_CHAR in f["path"]})
+    if bad:
+        warnings.append("有 %d 个路径不是 UTF-8，显示时不能识别的字节换成了 �，这些文件读不到内容：%s"
+                        % (len(bad), "、".join(bad[:5]) + ("……" if len(bad) > 5 else "")))
     if module is not None:
         warnings.extend(mixed_module_warnings(commits, args.module, known))
     return {

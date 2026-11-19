@@ -1,8 +1,10 @@
 """Explicit --range: commits, per-file numstat, size, exit codes, read-only (AC1, AC6, AC7, AC8)."""
+import json
 import os
+import subprocess
 import unittest
 
-from fixtures import RepoCase
+from fixtures import RepoCase, GIT_ENV
 
 
 class RangeTest(RepoCase):
@@ -94,8 +96,26 @@ class RangeTest(RepoCase):
     def test_not_a_repository(self):
         plain = os.path.join(self.tmp.name, "plain")
         os.mkdir(plain)
-        code, _out, err = self.run_cli("--project", plain, "--range", "a..b", "--offline", check_readonly=False)
+        with open(os.path.join(plain, "keep.txt"), "w") as handle:
+            handle.write("x\n")
+        code, _out, err = self.run_cli("--project", plain, "--range", "a..b", "--offline", plain_dir=plain)
         self.assertOneLineError(code, 4, err)
+
+    def test_non_utf8_path_is_a_warning_not_a_traceback(self):
+        r = self.repo
+        r.write("a.txt", "a\n")
+        base = r.commit("init")
+        blob = r.git("hash-object", "-w", "a.txt").strip()
+        subprocess.run(["git", "update-index", "--add", "--cacheinfo", b"100644," + blob.encode() + b",bad\xff.txt"],
+                       cwd=str(r.root), check=True, env=dict(os.environ, **GIT_ENV))
+        r.git("commit", "-q", "-m", "add non-utf8 path")
+        head = r.git("rev-parse", "HEAD").strip()
+        code, out, err = self.run_cli("--project", str(r.root), "--range", "%s..%s" % (base, head), "--offline")
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("Traceback", err)
+        facts = json.loads(out)
+        self.assertEqual(facts["totals"]["files"], 1)
+        self.assertTrue(any("不是 UTF-8" in w for w in facts["warnings"]), facts["warnings"])
 
 
 if __name__ == "__main__":
