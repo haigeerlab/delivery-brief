@@ -5,7 +5,12 @@
 - [x] Task 2：渲染核对记录 — `render_brief.py --cross-check <json>`：先校验记录（status、backend、model、reportPath、coverage 整数、findings 的 title／verdict／note，incomplete 要有 reason），不合格退出 2 并点名字段；附录加「交叉核对记录」折叠块（后端、模型、覆盖、报告路径、逐条结论），页脚加一行摘要或「交叉核对没有完成：原因」；不给参数时不出任何核对标记，两次渲染去掉时间后逐字相同。`test_render.py` 新增 4 例，实现前 3 例失败，实现后 104 例全过（两个 Python 版本）。
 - [x] Task 3：审查模板与命令文件 — `references/cross-check-prompt.md`：只有 `{{project}}`、`{{subject}}` 两个占位，说明材料、请核对的四类（说法不符、引用对不上、漏掉的事实、读不懂），不打分、不给改代码建议、最多 10 条；`commands/brief.md` 加第 4.5 步（没装 delegate 时记 incomplete 并照常渲染、准备材料、只替换占位调用 `delegate:review` 不传后端与模型、读报告且退出 0 不等于通过、逐条核实标 verdict 只改 confirmed、复检、写记录、删材料目录）与 `--cross-check` 参数、规模报告的预计花费、渲染时的 `--cross-check`。`test_rules_doc.py` 新增 3 例（模板只有两个占位、模板不含结论与引导用语、命令流程要素齐全），107 例全过。
 - [x] Checkpoint 1（report）：完整检查 — 107 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过。
-- [ ] Task 4：真实交叉核对一次
+- [x] Task 4：真实交叉核对一次 — 对 module-brief 第 2 次生成的 `~/.claude/delivery-brief/sgclone/usage-draft.md` 照第 4.5 步做：
+  - 材料 579308 字节（CHANGELOG 截成窗口），只替换模板两个占位，经 `delegate:review`（delegate 0.8.6，后端 codex，模型未报告）只读审查：`execution_status` completed、审查 26／26 个文件、未审查 0，10 条发现；用量输入 224016 token、输出 3504 token。
+  - 逐条回到终点提交的代码核实：10 条全部成立（confirmed），按讲解规则改进讲解（证据仍只引代码、测试、实跑输出；新增实跑输出 O10），复检 0 错误 0 提醒，讲解源文件 291 行→300 行。
+  - **和样张对照时漏掉的 3 条全部找回**（没有 python3 时静默跳过、草案目录列不出来时预览报错、add-module 后忘归里程碑不被拦）；另有 7 条新问题（AC2、AC4 证据写过头、`unverified` 的接口细节、顺序诊断点错名字、引错 validate.sh 行、M1 停点的引用版本与上下文、缺不新增交审小项的理由）。
+  - 核对记录 `usage-draft.crosscheck.json` 渲染进附录与页脚，浏览器自验显示正确（10 行、页脚摘要、无横向溢出）；材料目录已删除。
+  - 偏离 Spec：假设 8 估的约 10 万输入 token 实测为 22.4 万；命令文件的预计花费已改为「约 10～25 万」，Spec 的修订在最终验收时交审。
 - [ ] Task 5：M1 发版准备
 - [ ] Checkpoint 2（gate）：本机安装插件
 - [ ] Task 6：端到端两次

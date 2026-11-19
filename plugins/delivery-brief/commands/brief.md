@@ -39,7 +39,7 @@ git -C "$PROJECT" status --porcelain > "$OUT/.$NAME.before"; git -C "$PROJECT" f
 
 - **diff 约超过 5 万 token（`size.diffBytes` 超过 200000）时停下问用户是否继续**，说明大致会读多少；用户同意再往下。
 - 没超过只报不问，直接继续。
-- 给了 `--cross-check` 时再加一句：交叉核对经 delegate 另花约 10 万输入 token（delegate 默认后端的额度），用户写了这个参数就算同意，不另问。不要用 `size.estimatedTokens` 判断（它把被改文件全文算进去，按读取策略并不会整读）。
+- 给了 `--cross-check` 时再加一句：交叉核对经 delegate 另花约 10～25 万输入 token（随材料大小；2026-11-19 对一个 26 文件、约 58 万字节材料的模块实测 22.4 万，花在 delegate 默认后端的额度上），用户写了这个参数就算同意，不另问。不要用 `size.estimatedTokens` 判断（它把被改文件全文算进去，按读取策略并不会整读）。
 
 ## 3. 读代码，写讲解源文件
 
