@@ -106,3 +106,43 @@
 - Dependencies: 无
 - Configs: 无
 - Patches: 无
+
+## 返工（0.1.1）
+
+2026-11-19 用户在 cross-check 最终验收时同意先发 0.1.0、README 列已知问题、之后修；按 spec-guard「返工与小模块」规则，
+这批是本模块已批准范围里的缺口（AC5、AC7、AC8 与 Task 3 用例「文件缺失或写坏时进 warnings」），在本模块内返工，不开新模块、不重新交审。
+来源：`/delivery-brief:brief brief-facts --cross-check` 的 10 条 confirmed 发现里针对代码的 5 条。
+
+### Task 7：非 UTF-8 路径不抛堆栈（AC8）
+
+- 文件：`scripts/facts_git.py`、`scripts/brief_facts.py`、`tests/test_range.py`。
+- 做法：git 输出里的路径按 UTF-8 解码失败时用替换字符显示，不中断；`warnings` 记一条「有 N 个路径不是 UTF-8」并列出前几个。
+- 用例：用 `git update-index --cacheinfo` 造一个非 UTF-8 路径的提交（macOS 不让建这种文件名），`--range` 退出 0、warnings 有这一条、没有堆栈。
+
+### Task 8：分开「终点不在远端」与「gh 查询失败」（AC5）
+
+- 文件：`scripts/facts_links.py`、`tests/test_links.py`。
+- 做法：`gh api …/commits/<sha>` 失败时看 stderr：带 `HTTP 404` 或 `HTTP 422` 才算不在远端；其他失败（网络、权限、限流、超时）写「gh 查询终点提交失败：原因」。
+- 用例：假 gh 分别给 422 与 403，`links.reason` 不同。
+
+### Task 9：读不到的文件进 warnings（Task 3 用例）
+
+- 文件：`scripts/brief_facts.py`、`tests/test_module_range.py`。
+- 做法：模块的 todo 在终点或 HEAD 读不到、用法草案读不到时各记一条 warning（没有 Plan 仍只记 `plan.exists: false`，没有 `spec/usage/` 不算问题）。
+
+### Task 10：终点之后只改代码的提交（AC3 的提示）
+
+- 文件：`scripts/brief_facts.py`、`docs/facts-schema.md`、`tests/test_module_range.py`。
+- 做法：新增 `range.basis.laterCodeOnlyCommits`：终点之后、下一个改动别的模块 spec／tasks 文件的提交之前，没改任何 `spec/`、`tasks/` 文件的非合并提交；有则进 warnings。只增字段，不改终点。
+- 用例：gate 之后补一个只改代码的提交 → 字段与 warning 都有；之后紧接别的模块的提交不算进来。
+
+### Task 11：收紧只读与报错测试（AC7、AC8）
+
+- 文件：`tests/fixtures.py`、`tests/test_range.py`。
+- 做法：快照加上工作区每个文件的内容摘要（不只看 status）；非仓库目录也做快照；`assertOneLineError` 断言报错含中文。
+- 验证：故意让收集脚本写一个文件（草稿副本里变异）时快照测试变红。
+
+### Checkpoint 3（gate）：返工验收
+
+- 两个 Python 版本全部测试；`claude plugin validate .`；对本仓库重跑 `--module brief-facts` 看 warnings。
+- 呈现：每条已知问题的修法与证据、改动表；之后问发 0.1.1（推送、打标签各问一次）。

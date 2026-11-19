@@ -9,3 +9,9 @@
 - [x] Task 6：文档 — `docs/facts-schema.md`：用法与退出码、范围推断规则与三条已知局限、全部字段表（含 `files[].oldPath` 等可选字段）。`test_schema_doc.py` 比对文档字段与真实输出（模块＋重命名两次运行的并集），两个方向都不许多：初跑发现 4 个文档字段在夹具里没出现（夹具没有未勾项），给夹具补一项未勾后通过；36 例全过（两个 Python 版本）。
 - [x] Checkpoint 1（report）：完整检查与实测 — 主机 macOS 27.2 arm64、git 2.54.0：全部 36 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过。实测 spec-guard 临时克隆（远端 main `291a0c74`，`--offline`）：usage-draft `273faa86`→`70c3b750`、9 个提交、26 个文件 +995/−20；map-extra-columns `c9ee3329`→`e0cfa90a`、6 个提交、14 个文件 +212/−10，与人工核对一致；两次运行前后克隆的工作区与 ref 不变。联网：克隆的 origin 是本机路径，按规则给本机链接；改对 spec-guard 本机仓库跑 `--range 273faa86^..70c3b750`，得 GitHub 链接基址 `…/blob/70c3b750…/`（公开、终点在远端），拼出的 `usage_draft.py` 链接 HTTP 200，该仓库工作区与 ref 不变。变异见 Task 4。观察：usage-draft 的估算 token 为 251685，主要来自被改文件全文（规则文本、module-insert.py 等大文件），module-brief 设计读取策略时要考虑。
 - [x] Checkpoint 2（gate）：最终验收 — 2026-11-19 用户「验收通过」（针对 AC1–AC9 证据、改动表、提交表与 Spec 范围内补充的三个字段和 AC 兜底）。本仓库无远端，不推送。
+- [ ] Task 7：非 UTF-8 路径不抛堆栈（返工，见 plan「返工（0.1.1）」）
+- [ ] Task 8：分开「终点不在远端」与「gh 查询失败」（返工）
+- [ ] Task 9：读不到的文件进 warnings（返工）
+- [ ] Task 10：终点之后只改代码的提交进 `laterCodeOnlyCommits` 与 warnings（返工）
+- [ ] Task 11：收紧只读与报错测试（返工）
+- [ ] Checkpoint 3（gate）：返工验收与 0.1.1 发版授权
