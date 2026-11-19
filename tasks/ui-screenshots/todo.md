@@ -16,6 +16,6 @@
   - 浏览器自验（本机静态服务打开讲解页）：两张图 1280×800、显示 918px，标题含路径；流程图渲染；附录「截图来源：在终点提交 cacd0d02 的导出目录里起开发服务器……2 张里成功 2 张」；无横向溢出。
   - 实跑中发现并修了：我手工执行第 3 步的 `rm -rf "$OUT/$NAME.md" …` 被 Claude Code 的安全检查拦下（变量为空时会删到根目录），用户运行命令时同样会被拦。命令文件里全部删除目标改为 `"${变量:?}/…"`，开头加一句规则；`test_rules_doc.py` 新增 1 例守护（实现前失败）。
 - [x] Task 6：M2 发版准备 — README：安装加 Chrome（可选）、参数表加 `--no-screenshots` 与 `--base-url`、新增「界面截图」一节（导出、装依赖、启动方式顺序、看图、不替你登录不输入密码不点击、不复制 `.env`、收尾、实测耗时、截图目录要和讲解页一起移动）、输出位置加 `.shots/`、「0.1.1 修了什么」改为「版本记录」（0.2.0 与已知局限：含 `[[` 的路径没法引用）、后续计划去掉 ui-screenshots。`plugin.json` 版本 0.2.0。`claude plugin validate .` 通过；132 例两个 Python 版本通过。
-- [ ] Checkpoint 2（gate）：本机升级插件
+- [x] Checkpoint 2（gate）：本机升级插件 — 2026-11-19 用户「同意升级」。`claude plugin marketplace update delivery-brief-marketplace` 与 `claude plugin update delivery-brief@delivery-brief-marketplace --scope user` 成功；读回：版本 0.2.0、`installPath` 为 `…/delivery-brief/0.2.0`、`gitCommitSha` 为 `a0da6ec`；缓存与仓库 `plugins/delivery-brief` 逐文件一致。新开会话或 `/clear` 后加载。
 - [ ] Task 7：端到端一次
 - [ ] Checkpoint 3（gate）：最终验收与发版授权
