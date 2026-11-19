@@ -139,3 +139,64 @@ class RenderTest(CheckCase):
         for anchor in ("why", "inventory", "layers", "route", "judge", "appendix"):
             self.assertIn('id="%s"' % anchor, html)
         self.assertIn("1 为什么改", html)
+
+
+CROSS = {"status": "complete", "backend": "codex", "model": "unknown", "reportPath": "/tmp/r.json",
+         "coverage": {"reviewed": 6, "unreviewed": 0},
+         "findings": [{"title": "AC1 证据写过头", "verdict": "confirmed", "note": "已改为只证明了一部分"},
+                      {"title": "提交数写错", "verdict": "rejected", "note": "页头数字由脚本生成，见 facts.commits"},
+                      {"title": "边界没测到", "verdict": "unverified", "note": "需要装依赖才能跑"}]}
+
+
+class CrossCheckRenderTest(CheckCase):
+    render = RenderTest.render
+    def render_with(self, cross, expect=0):
+        path = os.path.join(self.tmp.name, "cross.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(cross if isinstance(cross, str) else json.dumps(cross, ensure_ascii=False))
+        src = os.path.join(self.tmp.name, "brief.md")
+        out = os.path.join(self.tmp.name, "brief.html")
+        with open(src, "w", encoding="utf-8") as handle:
+            handle.write(GOOD)
+        proc = subprocess.run([sys.executable, "-B", str(RENDER), "--facts", self.facts_path, "--source", src,
+                               "--out", out, "--cross-check", path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        err = proc.stderr.decode("utf-8")
+        self.assertEqual(proc.returncode, expect, err)
+        self.assertNotIn("Traceback", err)
+        if expect:
+            return err
+        with open(out, encoding="utf-8") as handle:
+            return handle.read()
+
+    def test_complete_record_and_footer(self):
+        html = self.render_with(CROSS)
+        appendix = html.split('id="appendix"')[1]
+        self.assertIn("交叉核对记录", appendix)
+        for finding in CROSS["findings"]:
+            self.assertIn(finding["title"], appendix)
+            self.assertIn(finding["note"], appendix)
+        for label in ("成立，已改", "不成立", "没有核实"):
+            self.assertIn(label, appendix)
+        footer = html.split("<footer>")[1]
+        self.assertIn("交叉核对（codex）：3 条发现，1 条成立已改，1 条不成立，1 条没有核实", footer)
+
+    def test_incomplete(self):
+        cross = dict(CROSS, status="incomplete", reason="delegate 报告有 2 个文件没审查", findings=[])
+        footer = self.render_with(cross).split("<footer>")[1]
+        self.assertIn("交叉核对没有完成：delegate 报告有 2 个文件没审查", footer)
+
+    def test_invalid_records_exit_2(self):
+        bad = json.loads(json.dumps(CROSS))
+        bad["findings"][0]["verdict"] = "maybe"
+        self.assertIn("verdict", self.render_with(bad, expect=2))
+        missing = dict(CROSS)
+        missing.pop("coverage")
+        self.assertIn("coverage", self.render_with(missing, expect=2))
+        self.assertIn("reason", self.render_with(dict(CROSS, status="incomplete"), expect=2))
+        self.render_with("{not json", expect=2)
+
+    def test_without_flag_nothing_changes(self):
+        first = re.sub(r"生成于 [0-9: -]+", "", self.render())
+        second = re.sub(r"生成于 [0-9: -]+", "", self.render())
+        self.assertEqual(first, second)
+        self.assertNotIn("交叉核对", first)

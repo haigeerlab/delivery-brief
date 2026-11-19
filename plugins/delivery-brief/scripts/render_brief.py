@@ -19,6 +19,7 @@ import brief_markdown as md  # noqa: E402
 SECTION_IDS = [("为什么改", "why"), ("产出清单", "inventory"), ("分层讲改动", "layers"), ("阅读路线", "route"),
                ("需要你判断的", "judge"), ("附录", "appendix")]
 MERMAID = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"
+VERDICTS = {"confirmed": "成立，已改", "rejected": "不成立", "unverified": "没有核实"}
 STATUS = {"A": "新增", "M": "修改", "D": "删除", "R": "重命名", "C": "复制", "T": "类型变化"}
 
 CSS = """
@@ -99,10 +100,39 @@ def esc(text):
     return html.escape(text, quote=True)
 
 
+class CrossCheckError(ValueError):
+    pass
+
+
+def validate_cross_check(record):
+    """Raise CrossCheckError naming the first field that is missing or wrong."""
+    if not isinstance(record, dict):
+        raise CrossCheckError("核对记录要是一个 JSON 对象")
+    for key in ("status", "backend", "model", "reportPath", "coverage", "findings"):
+        if key not in record:
+            raise CrossCheckError("核对记录缺少字段 %s" % key)
+    if record["status"] not in ("complete", "incomplete"):
+        raise CrossCheckError("status 只能是 complete 或 incomplete")
+    if record["status"] == "incomplete" and not record.get("reason"):
+        raise CrossCheckError("status 为 incomplete 时要写 reason")
+    coverage = record["coverage"]
+    if not isinstance(coverage, dict) or not all(isinstance(coverage.get(k), int) for k in ("reviewed", "unreviewed")):
+        raise CrossCheckError("coverage 要有整数 reviewed 与 unreviewed")
+    if not isinstance(record["findings"], list):
+        raise CrossCheckError("findings 要是列表")
+    for index, finding in enumerate(record["findings"], 1):
+        for key in ("title", "verdict", "note"):
+            if not isinstance(finding, dict) or key not in finding:
+                raise CrossCheckError("findings 第 %d 条缺少字段 %s" % (index, key))
+        if finding["verdict"] not in VERDICTS:
+            raise CrossCheckError("findings 第 %d 条的 verdict 只能是 %s" % (index, "、".join(VERDICTS)))
+
+
 class Renderer:
-    def __init__(self, facts):
+    def __init__(self, facts, cross=None):
         self.facts = facts
         self.links = facts["links"]
+        self.cross = cross
 
     def cite(self, path, start, end):
         label = path if start is None else "%s:%d%s" % (path, start, "" if end == start else "-%d" % end)
@@ -241,7 +271,33 @@ class Renderer:
                 '<tr><th>文件</th><th>状态</th><th>行</th></tr>%s</table></div></details>'
                 '<details><summary>提交表（%d 个，不含合并提交）</summary><div class="scroll"><table>'
                 '<tr><th>提交</th><th>说明</th><th>日期</th></tr>%s</table></div></details>'
-                % (totals["files"], totals["added"], totals["deleted"], files, len(self.facts["commits"]), commits))
+                % (totals["files"], totals["added"], totals["deleted"], files, len(self.facts["commits"]), commits)
+                + self.cross_check_record())
+
+    def cross_check_record(self):
+        if not self.cross:
+            return ""
+        cross = self.cross
+        rows = "".join("<tr><td>%s</td><td>%s</td><td>%s</td></tr>" % (
+            esc(f["title"]), VERDICTS[f["verdict"]], esc(f["note"])) for f in cross["findings"])
+        head = "后端 %s，模型 %s；审查了 %d 个文件，没审查 %d 个；报告 <code>%s</code>" % (
+            esc(cross["backend"]), esc(cross["model"]), cross["coverage"]["reviewed"], cross["coverage"]["unreviewed"],
+            esc(cross["reportPath"]))
+        if cross["status"] == "incomplete":
+            head += "；<b>没有完成</b>：%s" % esc(cross["reason"])
+        return ('<details open><summary>交叉核对记录（%d 条）</summary><p class="why">%s</p><div class="scroll"><table>'
+                '<tr><th>发现</th><th>核实结论</th><th>说明</th></tr>%s</table></div></details>'
+                % (len(cross["findings"]), head, rows))
+
+    def cross_check_footer(self):
+        if not self.cross:
+            return ""
+        cross = self.cross
+        if cross["status"] == "incomplete":
+            return "<br>交叉核对没有完成：%s。" % esc(cross["reason"])
+        count = lambda verdict: sum(1 for f in cross["findings"] if f["verdict"] == verdict)
+        return ("<br>交叉核对（%s）：%d 条发现，%d 条成立已改，%d 条不成立，%d 条没有核实；明细见附录。"
+                % (esc(cross["backend"]), len(cross["findings"]), count("confirmed"), count("rejected"), count("unverified")))
 
     def page(self, blocks):
         sections = md.sections(blocks)
@@ -265,10 +321,10 @@ class Renderer:
                 body.extend(self.block(b) for b in section_blocks)
         rng = self.facts["range"]
         footer = ("<footer>讲解是代码的摘要，以链接指向的代码为准。范围 <code>%s..%s</code>（%s）；链接：%s。"
-                  "页头与附录的数字由 delivery-brief 从 git 直接生成。</footer>"
+                  "页头与附录的数字由 delivery-brief 从 git 直接生成。%s</footer>"
                   % (esc((rng["base"] or "")[:8]), esc(rng["head"][:8]),
                      "按 spec-guard 文件约定推断" if rng["source"] == "inferred-spec-guard" else "指定",
-                     esc(self.links["reason"])))
+                     esc(self.links["reason"]), self.cross_check_footer()))
         title_text = md.plain(title)
         return ("<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n"
                 "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
@@ -289,6 +345,7 @@ def main(argv=None):
     parser.add_argument("--facts", required=True)
     parser.add_argument("--source", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--cross-check", dest="cross_check")
     args = parser.parse_args(argv)
     try:
         with open(args.facts, encoding="utf-8") as handle:
@@ -298,7 +355,16 @@ def main(argv=None):
     except (OSError, ValueError) as error:
         print("读不了输入：%s" % error, file=sys.stderr)
         return 2
-    page = Renderer(facts).page(blocks)
+    cross = None
+    if args.cross_check:
+        try:
+            with open(args.cross_check, encoding="utf-8") as handle:
+                cross = json.load(handle)
+            validate_cross_check(cross)
+        except (OSError, ValueError) as error:
+            print("核对记录不能用：%s" % error, file=sys.stderr)
+            return 2
+    page = Renderer(facts, cross).page(blocks)
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as handle:
         handle.write(page)
