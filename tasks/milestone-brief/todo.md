@@ -17,6 +17,6 @@
   - 检查 2 次：第 1 次 1 个错误（引了 cross-check todo 的第 22 行，终点上只有 21 行——第二个提交在终点之后），改为只引第 21 行并写清另一个提交在终点之后，第 2 次 0 错误 0 提醒。抽查引用的行：命令文件第 24／40／62／90／110 行、`check_brief.py` 第 49／94 行、`brief_markdown.py` 第 16 行等，内容与讲解一致。
   - 浏览器自验（本机静态服务）：标题、页头「M1 · 典型用法 U1 模块交付后看讲解 · 3 个模块」「已确认」、提示 1 条、七节目录、32 个 GitHub 行号链接（抽一条 HTTP 200）、代码地图、模块表里 `brief-facts.html` 点击后打开 brief-facts 模块页、另两个写「还没生成」、没有占位文字、无横向溢出。本仓库运行前后 `git status` 与 ref 不变。
 - [x] Task 8：M3 发版准备 — README：开头一句加里程碑；用法加 `--milestone M1` 与 `--draft`；新增「里程碑讲解页」一节（七节、范围并集、输出文件名、不支持交叉核对与截图）；版本记录加 0.3.0；「后续计划」改为「当前状态」（五个模块都已完成）与已知局限。两份清单与命令文件的描述加上里程碑。`plugin.json` 0.3.0。`claude plugin validate .` 通过；160 例两个 Python 版本通过。
-- [ ] Checkpoint 2（gate）：本机升级插件
+- [x] Checkpoint 2（gate）：本机升级插件 — 2026-11-19 用户「同意升级」。`claude plugin marketplace update delivery-brief-marketplace` 与 `claude plugin update delivery-brief@delivery-brief-marketplace --scope user` 成功；读回：版本 0.3.0、`installPath` 为 `…/delivery-brief/0.3.0`、`gitCommitSha` 为 `87a6c7c`；缓存与仓库 `plugins/delivery-brief` 逐文件一致。新开会话或 `/clear` 后加载。
 - [ ] Task 9：端到端一次
 - [ ] Checkpoint 3（gate）：最终验收与发版授权
