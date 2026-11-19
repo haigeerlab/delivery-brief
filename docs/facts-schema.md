@@ -42,7 +42,7 @@ spec-guard 若提供权威的模块提交接口，改用接口，本规则留作
 `render_brief.py` 只从 facts 取这些，生成页头、提示框与附录，讲解源文件里不写这些数字：
 
 - 页头：`project.name`、`range.base`、`range.head`、`range.source`（「推断」或「指定」标签）、`commits` 的个数、
-  `totals.files`／`added`／`deleted`、`range.inProgress`（「进行中」）、`module.todo.atHead` 里已勾且含「发版」的项（「已发版」）。
+  `totals.files`／`added`／`deleted`、`range.inProgress`（「进行中」）、`module.todo.atHead` 里已勾且以「发版」开头的项（「已发版」）。
 - 提示框：`warnings` 逐条；`links.kind` 为 `local` 且 `links.workingTreeMatchesEnd` 为 `false` 时加一条「本机工作区与终点提交不一致」。
 - 引用链接：`links.kind`、`links.base`、`links.lineFormat`。
 - 附录：`files`（路径、原路径、状态、增删或二进制）、`commits`（短号、标题、日期）、`totals`。

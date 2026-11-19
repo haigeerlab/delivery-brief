@@ -204,7 +204,7 @@ class Renderer:
                 "<span>%d 个文件 +%d / −%d</span>" % (totals["files"], totals["added"], totals["deleted"])]
         if rng.get("inProgress"):
             meta.append('<span><span class="tag flag">进行中</span> 还没有勾上的（gate）检查点</span>')
-        elif module and any(item["checked"] and "发版" in item["text"] for item in module["todo"]["atHead"]):
+        elif module and any(item["checked"] and item["text"].startswith("发版") for item in module["todo"]["atHead"]):
             meta.append('<span><span class="tag new">已发版</span> todo 里的发版一项已勾</span>')
         meta.append("<span>生成于 %s</span>" % datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
         parts = ["<header>", "<h1>%s</h1>" % self.inline(title), '<div class="meta">%s</div>' % "".join(meta)]

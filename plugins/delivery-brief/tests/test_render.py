@@ -65,6 +65,13 @@ class RenderTest(CheckCase):
         self.assertIn("进行中", header)
         self.assertNotIn("已发版", header)
 
+    def test_release_tag_only_for_a_release_item(self):
+        facts = self.load()
+        facts["module"]["todo"]["atHead"] = [{"text": "Task 1：骨架（版本在 M1 发版时定）", "checked": True,
+                                              "kind": "task", "deferred": False}]
+        self.save(facts)
+        self.assertNotIn("已发版", self.render().split('<nav class="toc">')[0])
+
     def test_warnings_shown_in_header(self):
         facts = self.load()
         facts["warnings"] = ["终点之后还有 1 个提交没算进范围"]

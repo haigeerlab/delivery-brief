@@ -8,5 +8,5 @@
 - [x] Task 5：文档 — `docs/facts-schema.md` 加「渲染脚本读哪些字段」一节（页头、提示框、引用链接、附录、页脚，以及检查脚本另读的字段）；`test_schema_doc.py` 仍通过（新段落不是字段表行，不影响比对）。
 - [x] Checkpoint 1（report）：完整检查 — 主机 macOS 27.2 arm64：88 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过。
 - [ ] Task 6：真实生成一：spec-guard usage-draft
-- [ ] Task 7：真实生成二：本仓库 brief-facts
+- [x] Task 7：真实生成二：本仓库 brief-facts — 由我照命令文件生成 `~/.claude/delivery-brief/delivery-brief/brief-facts.html`：范围（根）..`ba73323c`、10 个提交、22 个文件 +1792/−0、diff 约 2.4 万 token（未到阈值，只报不问）；实跑在 `git archive` 临时目录（终点提交测试 36 例 OK、`claude plugin validate .` 通过）；第一次检查 0 错误 0 提醒；抽查 16 处引用，1 处行号范围不准（阅读路线第 3 条从辅助函数开始）已改正后复检通过；项目状态前后一致。浏览器自验：Mermaid 1 张渲染成功、浅色与深色、375px 无横向溢出、本机链接与「工作区与终点不一致」提示正常。自验发现并修正：页头「已发版」把 Task 1 文字里的「M1 发版时定」也算成发版——改为只认以「发版」开头的项（+1 回归例，先红后绿，文档同步）；手机上左右布局的图过小，规则补一句节点多时用上下布局。实际耗用：本会话的用量读不到，未记录。
 - [ ] Checkpoint 2（gate）：最终验收
