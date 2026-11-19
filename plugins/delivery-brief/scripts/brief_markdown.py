@@ -2,15 +2,17 @@
 
 Blocks: heading, paragraph, list (two levels), table, code (lang "mermaid" for diagrams), details, unsupported.
 Inline tokens: ("text", s), ("code", s), ("bold", s), ("link", text, url), ("cite", path, start, end),
-("badcite", raw). A citation is [[path]], [[path:L12]] or [[path:L12-L30]]; inside code it is plain text.
+("outref", "O1"), ("badcite", raw). A real-run output is a code block ```output O1 whose text starts with the
+command line ("$ ..."); [[out:O1]] refers to it. A citation is [[path]], [[path:L12]] or [[path:L12-L30]]; inside code it is plain text.
 Anything else is kept verbatim as an `unsupported` block so the checker can name it and the page still shows it.
 """
 import re
 
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
-FENCE = re.compile(r"^(```|~~~)\s*([\w-]*)\s*$")
+FENCE = re.compile(r"^(```|~~~)\s*([\w-]*)\s*(.*?)\s*$")
 LIST_ITEM = re.compile(r"^( *)([-*+]|\d+[.)])\s+(.*)$")
 INLINE = re.compile(r"`([^`]+)`|\[\[(.*?)\]\]|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*")
+OUTREF = re.compile(r"^out:(O\d+)$")
 CITE = re.compile(r"^([^\s:\[\]]+)(?::L(\d+)(?:-L(\d+))?)?$")
 PIPE = "\x00PIPE\x00"
 
@@ -23,6 +25,8 @@ def inlines(text):
         code, cite, link_text, link_url, bold = match.groups()
         if code is not None:
             tokens.append(("code", code))
+        elif cite is not None and OUTREF.match(cite):
+            tokens.append(("outref", OUTREF.match(cite).group(1)))
         elif cite is not None:
             parsed = CITE.match(cite)
             start = int(parsed.group(2)) if parsed and parsed.group(2) else None
@@ -43,6 +47,17 @@ def inlines(text):
 
 def plain(tokens):
     return "".join(token[1] for token in tokens)
+
+
+def output_blocks(blocks):
+    """{id: block} of ```output O<n> code blocks, including inside details."""
+    found = {}
+    for block in blocks:
+        if block["type"] == "code" and block["lang"] == "output" and re.match(r"^O\d+$", block["info"]):
+            found[block["info"]] = block
+        elif block["type"] == "details":
+            found.update(output_blocks(block["blocks"]))
+    return found
 
 
 def _join(left, right):
@@ -134,7 +149,8 @@ def parse(text, offset=0):
             while j < len(lines) and lines[j].strip() != fence.group(1):
                 body.append(lines[j])
                 j += 1
-            blocks.append({"type": "code", "lang": fence.group(2), "text": "\n".join(body), "line": lineno})
+            blocks.append({"type": "code", "lang": fence.group(2), "info": fence.group(3), "text": "\n".join(body),
+                           "line": lineno})
             i = j + 1
             continue
         if stripped == "<details>":

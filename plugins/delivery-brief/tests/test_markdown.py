@@ -119,6 +119,18 @@ class InlineTest(unittest.TestCase):
         self.assertEqual(md.inlines("`[[a.py]]`"), [("code", "[[a.py]]")])
 
 
+class OutputTest(unittest.TestCase):
+    def test_output_block_and_reference(self):
+        blocks = md.parse("见 [[out:O1]]。\n\n```output O1\n$ python3 x.py\nok 1\n```\n")
+        self.assertEqual(md.tokens_of(blocks, "outref"), [("outref", "O1")])
+        outputs = md.output_blocks(blocks)
+        self.assertEqual(list(outputs), ["O1"])
+        self.assertTrue(outputs["O1"]["text"].startswith("$ python3 x.py"))
+
+    def test_bad_output_reference_is_badcite(self):
+        self.assertEqual(md.inlines("[[out:x]]")[0][0], "badcite")
+
+
 class SectionsTest(unittest.TestCase):
     def test_sections_split_on_h2(self):
         sections = md.sections(md.parse("前言\n\n## 甲\n\n内容\n\n### 子\n\n## 乙\n"))
