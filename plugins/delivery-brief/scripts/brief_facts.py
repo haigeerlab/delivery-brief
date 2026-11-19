@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import facts_git  # noqa: E402
+import facts_links  # noqa: E402
 import facts_specguard  # noqa: E402
 
 SCHEMA_VERSION = 1
@@ -188,7 +189,7 @@ def collect(args):
         "size": size,
         "module": module,
         "usageDraft": usage,
-        "links": None,
+        "links": facts_links.link_base(root, range_info["head"], args.offline),
         "warnings": warnings,
     }
 
