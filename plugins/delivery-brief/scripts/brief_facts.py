@@ -19,6 +19,7 @@ import facts_specguard  # noqa: E402
 
 SCHEMA_VERSION = 1
 MODULE_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+MILESTONE_ID = re.compile(r"^M\d+$")
 MAP_PATH = "spec/CAPABILITY-MAP.md"
 OTHER_MODULE_PATH = re.compile(r"^(?:spec/([a-z0-9-]+)\.md|tasks/([a-z0-9-]+)/)")
 
@@ -38,8 +39,14 @@ def parse_args(argv):
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--module")
     group.add_argument("--range", dest="range_")
+    group.add_argument("--milestone")
+    parser.add_argument("--draft", help="用法草案路径（项目有多份草案时和 --milestone 一起用）")
     parser.add_argument("--offline", action="store_true")
     args = parser.parse_args(argv)
+    if args.milestone is not None and not MILESTONE_ID.match(args.milestone):
+        raise UsageError("参数错误：里程碑编号要写成 M1、M2 这样：%s" % args.milestone)
+    if args.draft is not None and args.milestone is None:
+        raise UsageError("参数错误：--draft 只能和 --milestone 一起用")
     if args.module is not None and not MODULE_ID.match(args.module):
         raise UsageError("参数错误：模块 id 要是 kebab-case：%s" % args.module)
     if args.range_ is not None:
@@ -127,6 +134,11 @@ def later_code_only_commits(root, module_id, end):
     return found
 
 
+def _module_of(path):
+    match = OTHER_MODULE_PATH.match(path)
+    return match and (match.group(1) or match.group(2))
+
+
 def _other_module(path, module_id):
     match = OTHER_MODULE_PATH.match(path)
     name = match and (match.group(1) or match.group(2))
@@ -185,13 +197,74 @@ def usage_facts(root, module_id, warnings):
     return facts_specguard.usage_for_module(drafts, module_id, warnings) if drafts else None
 
 
+def _draft_for(root, wanted):
+    """(path, text) of the usage draft to read; one draft needs no --draft, several do."""
+    drafts = ["spec/usage/" + name for name in facts_git.list_dir(root, "HEAD", "spec/usage") if name.endswith(".md")]
+    if wanted is not None:
+        path = os.path.normpath(wanted).replace(os.sep, "/")
+        if path not in drafts:
+            raise facts_git.RangeError("没有这份用法草案：%s（有：%s）" % (wanted, "、".join(drafts) or "无"))
+    elif not drafts:
+        raise facts_git.RangeError("没有用法草案 spec/usage/*.md，读不到里程碑")
+    elif len(drafts) > 1:
+        raise UsageError("参数错误：有 %d 份用法草案，用 --draft 指定一份：%s" % (len(drafts), "、".join(drafts)))
+    else:
+        path = drafts[0]
+    return path, facts_git.show(root, "HEAD", path) or ""
+
+
+def milestone_facts(root, milestone_id, wanted_draft, known, warnings):
+    """(range_info, milestone) for a usage-draft milestone: the union of its modules' inferred ranges."""
+    draft, text = _draft_for(root, wanted_draft)
+    row = facts_specguard.milestone_row(text, milestone_id)
+    if row is None:
+        raise facts_git.RangeError("用法草案 %s 的 Milestones 表里没有 %s" % (draft, milestone_id))
+    if not row["confirmed"]:
+        warnings.append("里程碑 %s 还没确认（草案里没有 spec-guard 的确认行）" % milestone_id)
+    position = {sha: index for index, sha in enumerate(facts_git.commit_shas(root, None, "HEAD"))}
+    modules, starts, ends = [], [], []
+    for module_id in row["modules"]:
+        entry = {"id": module_id, "responsibility": known.get(module_id, {}).get("responsibility", ""),
+                 "status": "missing", "range": None}
+        notes = []
+        try:
+            if module_id not in known:
+                raise facts_git.RangeError("不在能力图 %s 上" % MAP_PATH)
+            base, head, in_progress, basis = infer_module_range(root, module_id, notes)
+        except facts_git.RangeError as error:
+            notes.append("推断不出范围：%s" % error)
+        else:
+            entry["status"] = "inProgress" if in_progress else "done"
+            entry["range"] = {"base": base, "head": head, "inProgress": in_progress, "basis": basis}
+            starts.append(basis["start"]["sha"])
+            ends.append(head)
+        warnings.extend("模块 %s：%s" % (module_id, note) for note in notes)
+        modules.append(entry)
+    if not starts:
+        raise facts_git.RangeError("里程碑 %s 的模块都推断不出范围" % milestone_id)
+    first = min(starts, key=lambda sha: position.get(sha, len(position)))
+    head = max(ends, key=lambda sha: position.get(sha, -1))
+    range_info = {"base": facts_git.parent(root, first), "head": head, "source": "inferred-spec-guard-milestone",
+                  "inProgress": any(m["status"] != "done" for m in modules), "basis": None}
+    milestone = {"id": milestone_id, "draft": draft, "usages": row["usages"], "confirmed": row["confirmed"],
+                 "modules": modules}
+    return range_info, milestone
+
+
 def collect(args):
     root = facts_git.ensure_repo(args.project)
     head_sha = facts_git.resolve(root, "HEAD")
     warnings = []
     module = None
     usage = None
-    if args.range_ is not None:
+    milestone = None
+    if args.milestone is not None:
+        map_text = facts_git.show(root, "HEAD", MAP_PATH)
+        if map_text is None:
+            raise facts_git.RangeError("没有 %s，不是 spec-guard 项目：里程碑讲解要用 spec-guard 的用法草案" % MAP_PATH)
+        known = facts_specguard.parse_map(map_text)["modules"]
+        range_info, milestone = milestone_facts(root, args.milestone, args.draft, known, warnings)
+    elif args.range_ is not None:
         base_rev, _, head_rev = args.range_.partition("..")
         base, head = facts_git.resolve(root, base_rev), facts_git.resolve(root, head_rev)
         range_info = {"base": base, "head": head, "source": "explicit", "inProgress": False, "basis": None}
@@ -214,7 +287,14 @@ def collect(args):
                         % (len(bad), "、".join(bad[:5]) + ("……" if len(bad) > 5 else "")))
     if module is not None:
         warnings.extend(mixed_module_warnings(commits, args.module, known))
-    return {
+    if milestone is not None:
+        inside = {m["id"] for m in milestone["modules"]}
+        for commit in commits:
+            others = sorted({name for name in (_module_of(path) for path in commit["files"])
+                             if name and name not in inside and name in known})
+            if others:
+                warnings.append("提交 %s（%s）改了这一站以外的模块的文件：%s" % (commit["short"], commit["subject"], "、".join(others)))
+    result = {
         "schemaVersion": SCHEMA_VERSION,
         "project": {"root": root, "name": os.path.basename(root), "head": head_sha},
         "range": range_info,
@@ -227,6 +307,9 @@ def collect(args):
         "links": facts_links.link_base(root, range_info["head"], args.offline),
         "warnings": warnings,
     }
+    if milestone is not None:
+        result["milestone"] = milestone
+    return result
 
 
 def main(argv=None):
