@@ -33,9 +33,9 @@
   - 模型自己的岔子（与合并无关）：next-shadcn 用 `sed` 修行号时误把一个表格单元格换成 `X`，下一步发现并改回、复检 0 错误。
   - 复查：两份源文件现在检查 0 错误 0 提醒，节数 6 与 7；截图 2/2；输出目录没有残留的 `.before`，即两个项目运行前后状态一致。M1 那次在导出目录里实跑了全部 170 个测试。
 - [x] Checkpoint 5（gate）：修订验收与 0.3.2 发版授权 — 2026-11-20 用户「全部同意」：推送 `main`、在本提交打 `v0.3.2` 并推送、按拟回告原文告诉 ecosystem-lead（本机已是 0.3.2）。后续可做（不在本次）：准备块只打印 facts 摘要，省掉 M1 那类大 facts 的两次补读。
-- [ ] Task 13：facts 摘要脚本 `facts_summary.py`
-- [ ] Task 14：准备块改用摘要
-- [ ] Task 15：版本 0.3.3 与 README
+- [x] Task 13：facts 摘要脚本 `facts_summary.py` — 提交、文件、代码地图各压成每条一行，去掉逐提交文件清单与里程碑各模块的 `range.basis`，其他字段原样输出，末尾注明完整 facts 路径；读不了退出 2。`test_facts_summary.py` 3 例（模块与提交段、里程碑、坏输入），实现前 2 例失败（坏输入那例因脚本不存在时 Python 本身就退出 2 而碰巧通过），实现后测试自身一处切分写错（`milestone` 先匹配到 `range.source`）改为按行取，两个 Python 都过。真实 facts：M1 43253 字节 → 摘要 16529 字符；next-shadcn 5486 → 2379。
+- [x] Task 14：准备块改用摘要 — 讲解规则改由 Read 读、与准备块同一条消息（规则 15088 字符、M1 摘要 16529 字符，各自在单次输出上限内）；准备块打印 `facts_summary.py` 的输出，命令文件不再 `cat` 整份 facts，并写明要逐提交文件或推断依据时用 `python3 -c` 取。`test_rules_doc.py` 改 1 例、加 1 例、`facts_summary.py` 加进参数核对，实现前 3 例失败，实现后命令文件测试全过。
+- [x] Task 15：版本 0.3.3 与 README — `plugin.json` 0.3.3；README 版本记录加 0.3.3；`claude plugin validate .` 通过；全部 174 例在 Python 3.10.7 与 3.9.6 各过一次，`dev/` 2 例通过。
 - [ ] Checkpoint 6（gate）：本机升级插件
 - [ ] Task 16：M1 重跑一次
 - [ ] Checkpoint 7（gate）：返工验收与 0.3.3 发版授权

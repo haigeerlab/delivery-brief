@@ -21,7 +21,7 @@ def help_text(script):
 class CommandOptionsTest(unittest.TestCase):
     def test_every_option_used_exists(self):
         for script in ("brief_facts.py", "check_brief.py", "render_brief.py", "crosscheck_material.py",
-                       "take_screenshots.py"):
+                       "take_screenshots.py", "facts_summary.py"):
             lines = [line for line in COMMAND.splitlines() if script in line]
             self.assertTrue(lines, "%s is not used in commands/brief.md" % script)
             usage = help_text(script)
@@ -84,11 +84,17 @@ def block_with(needle):
 class FewerTurnsTest(unittest.TestCase):
     """Spec assumption 10: steps that do not need each other's results go into one call."""
 
-    def test_prepare_block_reads_rules_collects_facts_and_records_state(self):
-        block = block_with("brief-rules.md")
-        self.assertIn('"${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py"', block)
+    def test_prepare_block_collects_facts_records_state_and_prints_summary(self):
+        block = block_with('"${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py"')
         self.assertIn('"$OUT/.$NAME.before"', block)
-        self.assertIn('cat "$OUT/$NAME.facts.json"', block)
+        self.assertIn('"${CLAUDE_PLUGIN_ROOT}/scripts/facts_summary.py" --facts "$OUT/$NAME.facts.json"', block)
+        self.assertNotIn('cat "$OUT/$NAME.facts.json"', COMMAND)
+        self.assertNotIn("brief-rules.md", block)
+
+    def test_rules_read_with_read_in_the_same_message(self):
+        part = COMMAND.split("## 1.")[1].split("## 2.")[0]
+        self.assertIn('Read 读 `"${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"`', part)
+        self.assertIn("同一条消息", part)
 
     def test_reading_is_batched(self):
         for phrase in ("分批", "每批", "3 万字符"):

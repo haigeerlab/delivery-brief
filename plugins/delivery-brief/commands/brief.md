@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Write, Edit
 **不写目标项目的任何文件，不改它的 git 状态**；要在目标项目目录里跑命令（读 git 除外）、或要联网（`gh` 查链接除外），先问用户。
 例外：第 4.6 步截图时，在导出的临时目录里按锁文件装依赖（要联网）、起开发服务器，不另问（第 2 步会先告诉用户）。
 
-第 1 步的准备块会打印讲解规则，后面每一步都照它做。
+第 1 步会读讲解规则，后面每一步都照它做。
 
 **少跑几轮**：每多一轮，整个上下文都要重读一遍。前后不依赖彼此结果的命令放进同一次调用（下面的命令块已经这样合好），
 多个工具调用能放进同一条消息的就放进同一条消息（同一条消息里的调用按顺序执行）。合并的命令块里每一步先 `echo "=== <步骤>"`，出错时看是哪一步。
@@ -21,18 +21,20 @@ allowed-tools: Bash, Read, Write, Edit
   否则是模块 id（`--module`）。`--project` 缺省为当前目录所在 git 仓库的根目录。
 - 输出目录 `OUT=~/.claude/delivery-brief/<项目目录名>`（即 facts 的 `project.name`，仓库根目录的名字），文件名 `NAME` 为模块 id；提交段时为 `<base 前 8 位>..<head 前 8 位>`
   （先用 `git rev-parse` 解析成完整提交号）。
-- **准备块**（一次调用）：读讲解规则、收集事实、删掉同名旧产物、记下目标项目的状态（最后一步要比对）、打印 facts：
+- **第一条消息发两个调用**：用 Read 读 `"${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"`（讲解规则），同一条消息里接着跑下面的准备块
+  （收集事实、删掉同名旧产物、记下目标项目的状态供最后一步比对、打印 facts 摘要）。分成两个调用是因为每个结果各有长度上限，
+  规则和 facts 放在一起打印会超，被存成文件后还得再读一轮。
 
 ```bash
 PROJECT="$(git -C <项目目录> rev-parse --show-toplevel)"; OUT=~/.claude/delivery-brief/"$(basename "$PROJECT")"; NAME=<模块 id>
 # 提交段：NAME="$(git -C "$PROJECT" rev-parse <base> | cut -c1-8)..$(git -C "$PROJECT" rev-parse <head> | cut -c1-8)"；里程碑：NAME=milestone-<M>
 mkdir -p "$OUT"
-echo "=== 讲解规则"; cat "${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"
 echo "=== 事实"
 if python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py" --project "$PROJECT" --module <id> > "$OUT/$NAME.facts.json"; then
   rm -rf "${OUT:?}/${NAME:?}.md" "${OUT:?}/${NAME:?}.html" "${OUT:?}/${NAME:?}.shots"
   { git -C "$PROJECT" status --porcelain; git -C "$PROJECT" for-each-ref; } > "$OUT/.$NAME.before"
-  echo "PROJECT=$PROJECT OUT=$OUT NAME=$NAME"; cat "$OUT/$NAME.facts.json"
+  echo "PROJECT=$PROJECT OUT=$OUT NAME=$NAME"
+  python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/facts_summary.py" --facts "$OUT/$NAME.facts.json"
 else
   echo "brief_facts 退出 $?"; rm -f "${OUT:?}/${NAME:?}.facts.json"
 fi
@@ -40,6 +42,7 @@ fi
 ```
 
 - 退出码非 0 时（块里会打印「brief_facts 退出 <n>」和 stderr 那一行），原样转述那一行并停下：2 是参数错，3 是范围解析不了（不是 spec-guard 项目时提示改用 `<base>..<head>`），4 是 git 出错。
+- 摘要把提交和文件压成每条一行，去掉了每个提交的文件清单和里程碑各模块的推断依据；要这些时用 `python3 -c` 从完整 facts 里取对应字段，不整份 `cat`。
 - 每次调用是新的 shell，变量不会留下：后面的命令块开头照抄准备块打印的 `PROJECT`、`OUT`、`NAME`。
 
 ### 里程碑页（给了 `--milestone <M>` 时）
