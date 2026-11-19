@@ -136,6 +136,23 @@ class CheckTest(CheckCase):
         self.assertError(GOOD.replace("2. [[src/a.py:L1]]：再看实现。", "2. 再看实现。"), "阅读路线", "第 2 条")
         self.assertError(GOOD.replace("3. [[tasks/alpha/todo.md]]：最后看 todo。\n", ""), "阅读路线", "3～7")
 
+    def shot(self, *blocks):
+        body = "".join("```screenshot %s\n%s\n```\n\n" % pair for pair in blocks)
+        return GOOD.replace("## 分层讲改动", body + "## 分层讲改动")
+
+    def test_screenshot_blocks_in_inventory_pass(self):
+        code, errors, warnings = self.check(self.shot(*[("页面 %d" % i, "/p%d" % i) for i in range(8)]))
+        self.assertEqual((code, errors, warnings), (0, [], []))
+
+    def test_screenshot_rules(self):
+        self.assertError(self.shot(("登录页", "login")), "截图", "/")
+        self.assertError(self.shot(("登录页", "/a/../b")), "截图", "..")
+        self.assertError(self.shot(("登录页", "/a b")), "截图")
+        self.assertError(self.shot(("", "/login")), "截图", "页面名")
+        self.assertError(self.shot(*[("页面 %d" % i, "/p%d" % i) for i in range(9)]), "截图", "8")
+        outside = GOOD.replace("## 阅读路线", "```screenshot 登录页\n/login\n```\n\n## 阅读路线")
+        self.assertError(outside, "截图", "产出清单")
+
     def test_layer_count(self):
         self.assertError(GOOD.replace("### L3 记录\n\n见 [[spec/alpha.md:L1-L3]]。\n", ""), "分层讲改动", "3～7")
 

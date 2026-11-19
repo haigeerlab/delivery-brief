@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import brief_markdown as md  # noqa: E402
 import facts_git  # noqa: E402
 
+MAX_SHOTS = 8
 SECTIONS = ("为什么改", "产出清单", "分层讲改动", "阅读路线", "需要你判断的", "附录")
 HEX = re.compile(r"(?<![0-9A-Za-z])[0-9a-f]{7,40}(?![0-9A-Za-z])")
 
@@ -77,6 +78,24 @@ class Checker:
         if "附录" in found and any(b["type"] != "paragraph" for b in found["附录"]):
             self.warn("附录", "附录由渲染脚本从 facts 生成，这里写的表格、列表不会显示，只留一行占位即可")
         self.check_commit_ids()
+        self.check_screenshots(found.get("产出清单", []))
+
+    def check_screenshots(self, inventory):
+        shots = md.screenshot_blocks(self.blocks)
+        inside = {shot["line"] for shot in md.screenshot_blocks(inventory)}
+        for shot in shots:
+            where = "截图第 %d 行" % shot["line"]
+            if shot["line"] not in inside:
+                self.error(where, "截图块只能放在「产出清单」里")
+            if not shot["title"]:
+                self.error(where, "缺少页面名：写成 ```screenshot <页面名>")
+            path = shot["path"]
+            if not path.startswith("/"):
+                self.error(where, "页面路径要以 / 开头：%s" % (path or "（空）"))
+            elif re.search(r"\s", path) or ".." in path.split("?")[0].split("/"):
+                self.error(where, "页面路径不能含空白或 ..：%s" % path)
+        if len(shots) > MAX_SHOTS:
+            self.error("截图", "最多 %d 张，现在 %d 张：只挑这次新增或明显改动的页面" % (MAX_SHOTS, len(shots)))
 
     def check_sections(self, titles):
         for name in SECTIONS:

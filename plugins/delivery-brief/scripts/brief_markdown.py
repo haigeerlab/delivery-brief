@@ -60,6 +60,21 @@ def output_blocks(blocks):
     return found
 
 
+def screenshot_blocks(blocks):
+    """[{title, path, line}] of ```screenshot <页面名> code blocks in order, including inside details.
+
+    The first non-empty line of the body is the page path; an empty body gives path "".
+    """
+    found = []
+    for block in blocks:
+        if block["type"] == "code" and block["lang"] == "screenshot":
+            lines = [line.strip() for line in block["text"].splitlines() if line.strip()]
+            found.append({"title": block["info"].strip(), "path": lines[0] if lines else "", "line": block["line"]})
+        elif block["type"] == "details":
+            found.extend(screenshot_blocks(block["blocks"]))
+    return found
+
+
 def _join(left, right):
     if left and right and left[-1].isascii() and left[-1].isalnum() and right[0].isascii() and right[0].isalnum():
         return left + " " + right

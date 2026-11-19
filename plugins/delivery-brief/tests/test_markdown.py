@@ -138,5 +138,17 @@ class SectionsTest(unittest.TestCase):
         self.assertEqual([b["type"] for b in sections[1][1]], ["paragraph", "heading"])
 
 
+class ScreenshotBlockTest(unittest.TestCase):
+    def test_screenshot_blocks_found_with_title_path_and_line(self):
+        source = "## 产出清单\n\n```screenshot 登录页\n/login\n```\n\n<details>\n<summary>更多</summary>\n\n```screenshot 看板\n/dashboard?x=1\n```\n\n</details>\n"
+        shots = md.screenshot_blocks(md.parse(source))
+        self.assertEqual([(s["title"], s["path"], s["line"]) for s in shots],
+                         [("登录页", "/login", 3), ("看板", "/dashboard?x=1", 10)])
+
+    def test_empty_body_gives_empty_path(self):
+        shots = md.screenshot_blocks(md.parse("```screenshot 空\n```\n"))
+        self.assertEqual(shots[0]["path"], "")
+
+
 if __name__ == "__main__":
     unittest.main()
