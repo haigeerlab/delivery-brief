@@ -149,6 +149,13 @@ class CheckTest(CheckCase):
         self.assertEqual((code, errors), (0, []))
         self.assertTrue(any("不支持" in w for w in warnings))
 
+    def test_mermaid_without_title_is_warned(self):
+        code, errors, warnings = self.check(GOOD.replace("### L2 计划", "```mermaid\nflowchart LR\n  A --> B\n```\n\n### L2 计划"))
+        self.assertEqual((code, errors), (0, []))
+        self.assertTrue(any("标题" in w for w in warnings))
+        code, _errors, warnings = self.check(GOOD.replace("### L2 计划", "```mermaid 入口只调一个脚本\nflowchart LR\n  A --> B\n```\n\n### L2 计划"))
+        self.assertEqual(warnings, [])
+
     def test_appendix_content_is_warned(self):
         code, _errors, warnings = self.check(GOOD.replace("（由脚本生成）", "| a | b |\n|---|---|\n| 1 | 2 |"))
         self.assertEqual(code, 0)

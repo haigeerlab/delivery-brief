@@ -111,6 +111,8 @@ class Checker:
 
     def check_unsupported(self, blocks):
         for block in blocks:
+            if block["type"] == "code" and block["lang"] == "mermaid" and not block["info"]:
+                self.warn("第 %d 行" % block["line"], "图没有标题：写成 ```mermaid <一句结论>，标题写结论不写图名")
             if block["type"] == "unsupported":
                 self.warn("第 %d 行" % block["line"], "不支持的写法，会原样显示：%s" % block["text"][:40])
             elif block["type"] == "details":
