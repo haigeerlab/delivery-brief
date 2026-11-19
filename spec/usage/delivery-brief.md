@@ -17,8 +17,8 @@
 
 ### U1: 模块交付后看讲解
 
-一个模块刚通过最终验收（或事后想补看以前的模块），你输入 `/delivery-brief:brief usage-draft`。先看到这次要读多少 diff，
-确认后得到 `~/.claude/delivery-brief/<项目>/usage-draft.html`：为什么改、产出清单、分层讲解、阅读路线、需要你判断的、附录。
+一个模块刚通过最终验收（或事后想补看以前的模块），你输入 `/delivery-brief:brief usage-draft`。先看到这次要读多少 diff（很大时先问你），
+然后得到 `~/.claude/delivery-brief/<项目>/usage-draft.html`：为什么改、产出清单、分层讲解、阅读路线、需要你判断的、附录。
 页头写明提交范围从哪推断出来。想更放心时加 `--cross-check`：讲解先经另一个模型核对，页脚多一行核对摘要，附录里有逐条核对记录。
 
 ### U2: 前端模块带截图
@@ -38,3 +38,5 @@
 | M1 | U1 | brief-facts, module-brief, cross-check |
 | M2 | U1, U2 | ui-screenshots |
 | M3 | U1, U2, U3 | milestone-brief |
+
+<!-- spec-guard: milestone M1 confirmed brief-facts, module-brief, cross-check -->
