@@ -128,6 +128,33 @@ def parse_todo(text):
     return items
 
 
+USAGE_HEADING = re.compile(r"^###\s+(U\d+)\s*[:：]\s*(.*)$")
+
+
+def milestone_row(text, milestone):
+    """One Milestones row of a usage draft with its usage titles, or None when the draft has no such row.
+
+    confirmed: the draft carries spec-guard's `<!-- spec-guard: milestone <M> confirmed ...` line (written by
+    milestone_mark after the user passed the milestone).
+    """
+    lines = visible_lines(text)
+    rows = _table_after(_section(lines, "Milestones"), ("Milestone", "Usage", "Modules"))
+    for name, usage, modules in rows or []:
+        if name.strip("`") != milestone:
+            continue
+        titles = {}
+        for line in _section(lines, "Typical usage"):
+            match = USAGE_HEADING.match(line.strip())
+            if match:
+                titles[match.group(1)] = match.group(2).strip()
+        confirmed = re.compile(r"<!--\s*spec-guard:\s*milestone\s+%s\s+confirmed\b" % re.escape(milestone))
+        return {"milestone": milestone,
+                "usages": [{"id": u, "title": titles.get(u, "")} for u in _names(usage)],
+                "modules": _names(modules),
+                "confirmed": any(confirmed.search(line) for line in text.splitlines())}
+    return None
+
+
 def usage_for_module(drafts, module_id, warnings=None):
     """Which draft and milestone the module belongs to, with its entries; None when it is in none."""
     for label in sorted(drafts):

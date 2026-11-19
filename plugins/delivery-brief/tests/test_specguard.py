@@ -151,5 +151,23 @@ class UsageTest(unittest.TestCase):
         self.assertIn("spec/usage/bad.md", warnings[0])
 
 
+class MilestoneRowTest(unittest.TestCase):
+    def test_row_with_usage_titles_and_modules(self):
+        row = sg.milestone_row(USAGE, "M2")
+        self.assertEqual(row["milestone"], "M2")
+        self.assertEqual(row["usages"], [{"id": "U1", "title": "跑"}, {"id": "U2", "title": "看"}])
+        self.assertEqual(row["modules"], ["beta", "gamma"])
+        self.assertFalse(row["confirmed"])
+
+    def test_confirmed_line(self):
+        draft = USAGE + "\n<!-- spec-guard: milestone M2 confirmed beta, gamma -->\n"
+        self.assertTrue(sg.milestone_row(draft, "M2")["confirmed"])
+        self.assertFalse(sg.milestone_row(draft, "M1")["confirmed"])
+
+    def test_missing_milestone_or_table(self):
+        self.assertIsNone(sg.milestone_row(USAGE, "M9"))
+        self.assertIsNone(sg.milestone_row("# Usage draft\n\nno tables\n", "M1"))
+
+
 if __name__ == "__main__":
     unittest.main()
