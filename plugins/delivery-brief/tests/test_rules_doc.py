@@ -20,7 +20,8 @@ def help_text(script):
 
 class CommandOptionsTest(unittest.TestCase):
     def test_every_option_used_exists(self):
-        for script in ("brief_facts.py", "check_brief.py", "render_brief.py", "crosscheck_material.py"):
+        for script in ("brief_facts.py", "check_brief.py", "render_brief.py", "crosscheck_material.py",
+                       "take_screenshots.py"):
             lines = [line for line in COMMAND.splitlines() if script in line]
             self.assertTrue(lines, "%s is not used in commands/brief.md" % script)
             usage = help_text(script)
@@ -57,6 +58,33 @@ class CrossCheckDocsTest(unittest.TestCase):
         render_line = [l for l in COMMAND.splitlines() if "--cross-check \"$OUT/$NAME.crosscheck.json\"" in l]
         self.assertTrue(render_line)
         self.assertIn("--cross-check", help_text("render_brief.py"))
+
+
+class ScreenshotDocsTest(unittest.TestCase):
+    def test_command_screenshot_flow(self):
+        hint = COMMAND.split("argument-hint:")[1].splitlines()[0]
+        for option in ("--no-screenshots", "--base-url"):
+            self.assertIn(option, hint)
+        for phrase in ("## 4.6 截图", "take_screenshots.py", "--shots \"$OUT/$NAME.shots/shots.json\"", "--shots-skipped",
+                       ".claude/launch.json", "--frozen-lockfile", "npm ci", "空闲端口", "进程组",
+                       "不替用户登录", "不输入任何账号密码", "逐张看", "停掉服务", "删掉导出目录", ".env",
+                       "未核对与终点提交一致", "--origin base-url"):
+            self.assertIn(phrase, COMMAND)
+        self.assertIn('"${CLAUDE_PLUGIN_ROOT}/scripts/take_screenshots.py"', COMMAND)
+        for option in ("--shots", "--shots-skipped"):
+            self.assertIn(option, help_text("render_brief.py"))
+        for option in ("--origin", "--wait"):
+            self.assertIn(option, help_text("take_screenshots.py"))
+
+    def test_rules_screenshot_block_parses(self):
+        import brief_markdown as md
+        example = RULES.split("<!-- screenshot-example -->")[1].split("<!-- /screenshot-example -->")[0]
+        fence = re.search(r"(`{3}screenshot .*?\n`{3})", example, re.S).group(1)
+        shots = md.screenshot_blocks(md.parse("## 产出清单\n\n" + fence + "\n"))
+        self.assertEqual(len(shots), 1)
+        self.assertTrue(shots[0]["path"].startswith("/"))
+        self.assertIn("最多 %d 个" % check_brief.MAX_SHOTS, RULES)
+        self.assertIn("本模块无界面", RULES)
 
 
 class RulesTemplateTest(unittest.TestCase):
