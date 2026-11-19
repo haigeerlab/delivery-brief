@@ -16,7 +16,7 @@ cat "${CLAUDE_PLUGIN_ROOT}/references/brief-rules.md"
 ## 1. 解析参数并收集事实
 
 - 第一个参数含 `..` 时是提交段（`--range`），否则是模块 id（`--module`）。`--project` 缺省为当前目录所在 git 仓库的根目录。
-- 输出目录 `OUT=~/.claude/delivery-brief/<项目目录名>`，文件名 `NAME` 为模块 id；提交段时为 `<base 前 8 位>..<head 前 8 位>`
+- 输出目录 `OUT=~/.claude/delivery-brief/<项目目录名>`（即 facts 的 `project.name`，仓库根目录的名字），文件名 `NAME` 为模块 id；提交段时为 `<base 前 8 位>..<head 前 8 位>`
   （先用 `git rev-parse` 解析成完整提交号）。
 
 ```bash
@@ -25,7 +25,7 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/brief_facts.py" --project "$PROJECT" -
 # 或：--range <base>..<head>
 ```
 
-- 退出码非 0 时，原样转述 stderr 那一行并停下：2 是参数错，3 是范围解析不了（不是 spec-guard 项目时提示改用 `<base>..<head>`），4 是 git 出错。
+- 退出码非 0 时，删掉空的 facts 文件，原样转述 stderr 那一行并停下：2 是参数错，3 是范围解析不了（不是 spec-guard 项目时提示改用 `<base>..<head>`），4 是 git 出错。
 - 记下目标项目的状态，最后一步要比对：
 
 ```bash
@@ -42,9 +42,9 @@ git -C "$PROJECT" status --porcelain > "$OUT/.$NAME.before"; git -C "$PROJECT" f
 
 ## 3. 读代码，写讲解源文件
 
-- 按讲解规则的读取策略读，写 `$OUT/$NAME.md`。格式、六节各写什么、证据硬规则、选图规则都以讲解规则为准。
+- 按讲解规则的读取策略读，写 `$OUT/$NAME.md`。同名文件已存在时先 `rm -f "$OUT/$NAME.md" "$OUT/$NAME.html"` 再写，不读旧文件。格式、六节各写什么、证据硬规则、选图规则都以讲解规则为准。
 - 需要实跑输出时，在临时目录里跑，**不在目标项目里跑**。在导出的临时目录里跑目标项目自己的测试或命令不用先问
-  （它不碰项目本身），跑完删掉临时目录：
+  （它不碰项目本身）；为验证边界可以在临时目录里增改文件，讲解里写明输入是构造的。跑完删掉临时目录：
 
 ```bash
 TMP="$(mktemp -d)"
@@ -62,7 +62,8 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/check_brief.py" --facts "$OUT/$NAME.fa
 ```
 
 - 退出码 1：按报告逐条修改讲解源文件再检查。**最多检查三次**（第一次检查加两轮修改后的复检；第一次检查前你自己的修改不算）。
-  第三次仍有错误，停下，把报告原样给用户，问是否照样渲染。
+  检查通过后你自己又改了源文件，要再检查一次，这一次也算在三次里。第三次仍有错误，停下，把报告原样给用户，问是否照样渲染。
+- 退出码 2（参数错、输入读不了）：原样转述 stderr 并停下。
 - 提醒（`warn`）不挡渲染，但能改就改；图没有标题的提醒要改。
 
 ## 5. 渲染并打开
@@ -77,6 +78,8 @@ python3 -B "${CLAUDE_PLUGIN_ROOT}/scripts/render_brief.py" --facts "$OUT/$NAME.f
 ```bash
 { git -C "$PROJECT" status --porcelain; git -C "$PROJECT" for-each-ref; } | diff "$OUT/.$NAME.before" - && rm "$OUT/.$NAME.before"
 ```
+
+中途停下（任何一步退出码非 0、等用户答复）时，先删掉 `$OUT/.$NAME.before`，答复后重新开始时再从第 1 步记。
 
 ## 6. 回复用户
 

@@ -166,7 +166,8 @@ class Checker:
         if not lists:
             self.error("需要你判断的", "要写成列表，每条一个事实并附证据")
             return
-        for index, item in enumerate(lists[0]["items"], 1):
+        items = [item for block in lists for item in block["items"]]
+        for index, item in enumerate(items, 1):
             if not _has_evidence(_item_tokens(item)):
                 self.error("需要你判断的 第 %d 条" % index, "没有引用或实跑输出")
 

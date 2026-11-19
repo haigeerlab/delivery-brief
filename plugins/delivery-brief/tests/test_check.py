@@ -127,6 +127,10 @@ class CheckTest(CheckCase):
     def test_judgement_without_evidence(self):
         self.assertError(GOOD.replace("- 只有一行实现 [[src/a.py:L1]]。", "- 只有一行实现。"), "需要你判断的", "第 1 条")
 
+    def test_judgement_items_after_an_output_block_are_checked(self):
+        source = GOOD.replace("- 跑出来是 a [[out:O1]]。", "- 跑出来是 a [[out:O1]]。\n\n```output O2\n$ true\n```\n\n- 第三条没有证据。")
+        self.assertError(source, "需要你判断的", "第 3 条")
+
     def test_route_must_be_ordered_with_citations(self):
         self.assertError(GOOD.replace("1. [[spec/alpha.md]]", "- [[spec/alpha.md]]"), "阅读路线")
         self.assertError(GOOD.replace("2. [[src/a.py:L1]]：再看实现。", "2. 再看实现。"), "阅读路线", "第 2 条")
