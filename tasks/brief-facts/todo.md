@@ -6,6 +6,6 @@
 - [x] Task 3：spec-guard 文件解析 — `facts_specguard.py`：能力图行与 Build order、Spec 批准标记与 AC（含续行、跳过围栏）、todo 项与 gate／report／延期、用法草案里程碑与入口（写坏的草案进 warnings）；`test_specguard.py` 9 例，实现前模块不存在报错，实现后 16 例全过（两个 Python 版本）。
 - [x] Task 4：模块范围推断 — `brief_facts.py --module`：起点、终点按 Spec 假设 4；`range.basis` 写起止提交与规则，另给 `laterModuleCommits`（终点之后仍改模块文件的提交）与 `openItemsAtHead`，有则进 warnings；混入别的模块文件的提交进 warnings；模块 id 非 kebab-case 退出 2，没有能力图、模块不在能力图上、没有提交退出 3。`test_module_range.py` 9 例，实现前 9 例失败，实现后 26 例全过（两个 Python 版本）。变异（草稿副本，终点改成「最后一次改 todo」）→ 4 例失败。范围内修正：spec-guard 的 map-extra-columns 的成功标准没有 AC 编号，实测读出 0 条，改为按条目顺序列出并标 `acsNumbered: false`、进 warnings（+1 例）。偏离 Spec 的补充：`laterModuleCommits`、`openItemsAtHead`、`acsNumbered` 三个字段是 Spec 没列的新增字段，只增不改，用来如实说出推断的局限（中途 gate 与发版收尾分不开）。
 - [x] Task 5：链接基址 — `facts_links.py`：origin 是 GitHub（https／ssh）、`gh api` 查得公开且终点提交在远端时给 `https://github.com/<repo>/blob/<终点 sha>/` 与 `#L{start}-L{end}`；否则本机路径并写原因，另给 `workingTreeMatchesEnd`；`gh` 10 秒超时。`test_links.py` 9 例用 PATH 里的假 gh，实现前 9 例报错，实现后 35 例全过（两个 Python 版本）；`--offline` 与非 GitHub 远端时假 gh 调用记录为空。
-- [ ] Task 6：文档
+- [x] Task 6：文档 — `docs/facts-schema.md`：用法与退出码、范围推断规则与三条已知局限、全部字段表（含 `files[].oldPath` 等可选字段）。`test_schema_doc.py` 比对文档字段与真实输出（模块＋重命名两次运行的并集），两个方向都不许多：初跑发现 4 个文档字段在夹具里没出现（夹具没有未勾项），给夹具补一项未勾后通过；36 例全过（两个 Python 版本）。
 - [ ] Checkpoint 1（report）：完整检查与实测
 - [ ] Checkpoint 2（gate）：最终验收
