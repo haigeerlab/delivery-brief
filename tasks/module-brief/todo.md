@@ -20,4 +20,4 @@
   - 测试：`test_markdown.py` 新增 3 例（含方括号的路径与行号、和旧写法混在一行、单行与倒置、旧写法不变）、`test_check.py` 新增 1 例（终点提交上含方括号的文件：行号在内通过、超出报错）、`test_render.py` 在 GitHub 链接用例里加断言（链接已编码、显示文字未编码）、`test_rules_doc.py` 加规则示例；实现前 4 例失败，实现后 164 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过。
   - 改前（`a8c3d0e`）改后渲染三份真实讲解（brief-facts 带交叉核对、next-shadcn 带截图、M1 里程碑页），去掉生成时间后都逐字相同。
   - 实测：把 next-shadcn 那份讲解的副本（scratchpad，不改原产物）里写成代码文字的 `page.tsx` 第 12～19 行改为 ``[[`src/app/auth/sign-in/[[...sign-in]]/page.tsx`:L12-L19]]``，检查 0 错误 0 提醒；改成 L12-L40 时报「行号超出文件行数（19 行）」；渲染出的本机链接为 `…/%5B%5B...sign-in%5D%5D/page.tsx:12`。
-- [ ] Checkpoint 3（gate）：返工验收与 0.3.1 发版授权
+- [x] Checkpoint 3（gate）：返工验收与 0.3.1 发版授权 — 2026-11-19 用户「验收通过；1 A；2 A；3 A；4 A」：推送 `main`、在本提交打 `v0.3.1` 并推送、本机升级到 0.3.1、按拟回告原文告诉 ecosystem-lead。
