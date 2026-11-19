@@ -9,7 +9,7 @@
   - 改前（`d30b73a`）改后渲染两份真实模块讲解（brief-facts 带交叉核对、next-shadcn 带截图），去掉生成时间后都逐字相同。
   - UI 自验：用本仓库 M1 的真实 facts（三个模块都已完成、M1 已确认、11 组目录）配一份简短源文件渲染，本机静态服务打开：页头「M1 · 典型用法 U1 模块交付后看讲解 · 3 个模块」「已确认」；目录 7 项；代码地图 11 行、新增着色；模块表里 brief-facts 链到 `brief-facts.html`，另两个写「还没生成」；桌面与手机宽度都无横向溢出。手机宽度下模块 id 与范围被挤成一字一行、职责里的反引号原样显示，改为这几列不换行、职责按行内格式渲染后复验正常。
 - [x] Task 6：命令文件与讲解规则 — `commands/brief.md`：参数提示加 `--milestone <M> [--draft <草案>]`；第 1 步认 `--milestone`；新增「里程碑页」小节（`NAME=milestone-$M`、报告多说用法与模块状态、按里程碑读取策略先读成功标准再读已有模块页源文件、缺模块页只标出、给了 `--cross-check` 说明暂不支持并跳过 4.5、不截图跳过 4.6）。`references/brief-rules.md`：新增「里程碑页」一节（读者与目标、读取策略、七节模板、每节写法：用法表、代码地图只写怎么读、走一遍 3～10 步写出模块 id、约定引用两个不同文件或写「没有新约定」）。`test_rules_doc.py` 新增 2 例（规则里的七节模板与 `MILESTONE_SECTIONS` 一致、命令流程要素与参数在 `--help` 里），实现前 1 失败 1 报错，实现后 14 例全过。
-- [ ] Checkpoint 1（report）：完整检查
+- [x] Checkpoint 1（report）：完整检查 — 全部 160 例在 Homebrew Python 3.10.7 与系统 Python 3.9.6 各通过一次；`claude plugin validate .` 通过。
 - [ ] Task 7：真实生成一次
 - [ ] Task 8：M3 发版准备
 - [ ] Checkpoint 2（gate）：本机升级插件
