@@ -20,6 +20,9 @@ import facts_git  # noqa: E402
 
 MAX_SHOTS = 8
 SECTIONS = ("为什么改", "产出清单", "分层讲改动", "阅读路线", "需要你判断的", "附录")
+MILESTONE_SECTIONS = ("这一站做成了什么", "代码地图", "沿典型用法走一遍", "跨模块约定", "各模块讲解", "需要你判断的", "附录")
+GENERATED = ("代码地图", "各模块讲解", "附录")
+USAGE_ID = re.compile(r"^\s*(U\d+)\b")
 HEX = re.compile(r"(?<![0-9A-Za-z])[0-9a-f]{7,40}(?![0-9A-Za-z])")
 
 
@@ -57,6 +60,8 @@ class Checker:
         self.warnings.append("warn %s：%s" % (where, what))
 
     def run(self):
+        if self.facts.get("milestone"):
+            return self.run_milestone()
         sections = md.sections(self.blocks)
         found = {title: blocks for title, blocks in sections if title}
         self.check_sections([title for title, _ in sections if title])
@@ -97,16 +102,88 @@ class Checker:
         if len(shots) > MAX_SHOTS:
             self.error("截图", "最多 %d 张，现在 %d 张：只挑这次新增或明显改动的页面" % (MAX_SHOTS, len(shots)))
 
-    def check_sections(self, titles):
-        for name in SECTIONS:
+    def run_milestone(self):
+        """Milestone page: seven sections; numbers, code map and module table come from facts."""
+        sections = md.sections(self.blocks)
+        found = {title: blocks for title, blocks in sections if title}
+        self.check_sections([title for title, _ in sections if title], MILESTONE_SECTIONS, "七节")
+        self.check_citations()
+        self.check_unsupported(self.blocks)
+        if "这一站做成了什么" in found:
+            self.check_usages(found["这一站做成了什么"])
+        if "沿典型用法走一遍" in found:
+            self.check_walk(found["沿典型用法走一遍"])
+        if "跨模块约定" in found:
+            self.check_conventions(found["跨模块约定"])
+        if "需要你判断的" in found:
+            self.check_judgements(found["需要你判断的"])
+        for name in GENERATED:
+            if name in found and any(b["type"] in ("table", "list") for b in found[name]):
+                self.warn(name, "这一节的表格由渲染脚本从 facts 生成，这里写的表格、列表会和它重复，只写几句怎么读即可")
+        if "附录" in found and md.output_blocks(found["附录"]):
+            self.error("附录", "实跑输出块 %s 放在附录里：附录由脚本生成，这些块不会显示；放到第一次引用它的地方之后"
+                       % "、".join(sorted(md.output_blocks(found["附录"]))))
+        self.check_commit_ids()
+        self.check_screenshots([])
+
+    def check_usages(self, blocks):
+        tables = [b for b in blocks if b["type"] == "table"]
+        if not tables:
+            self.error("这一站做成了什么", "要有一张表，草案里这一站的每个典型用法（U1、U2…）各占一行并给证据")
+            return
+        seen = set()
+        for table in tables:
+            for index, row in enumerate(table["rows"], 1):
+                match = USAGE_ID.match(md.plain(row[0]))
+                label = match.group(1) if match else "第 %d 行" % index
+                if match:
+                    seen.add(match.group(1))
+                if not any(_has_evidence(cell) for cell in row[1:]):
+                    self.error("这一站做成了什么 %s" % label, "证据格没有引用或实跑输出")
+        for usage in self.facts["milestone"]["usages"]:
+            if usage["id"] not in seen:
+                self.error("这一站做成了什么", "表里缺 %s（第一列以用法编号开头）" % usage["id"])
+
+    def check_walk(self, blocks):
+        lists = [b for b in blocks if b["type"] == "list"]
+        if not lists or not lists[0]["ordered"]:
+            self.error("沿典型用法走一遍", "要写成有序列表（1. 2. 3.），按用法发生的顺序")
+            return
+        items = lists[0]["items"]
+        if not 3 <= len(items) <= 10:
+            self.error("沿典型用法走一遍", "要走 3～10 步，现在 %d 步" % len(items))
+        modules = [m["id"] for m in self.facts["milestone"]["modules"]]
+        for index, item in enumerate(items, 1):
+            tokens = _item_tokens(item)
+            if not any(t[0] == "cite" for t in tokens):
+                self.error("沿典型用法走一遍 第 %d 步" % index, "没有指向代码的引用")
+            words = "".join(t[1] for t in tokens if t[0] in ("text", "code", "bold"))
+            if not any(re.search(r"(?<![a-z0-9-])%s(?![a-z0-9-])" % re.escape(m), words) for m in modules):
+                self.error("沿典型用法走一遍 第 %d 步" % index, "没写这一步属于哪个模块（写出模块 id：%s）" % "、".join(modules))
+
+    def check_conventions(self, blocks):
+        lists = [b for b in blocks if b["type"] == "list"]
+        if not lists:
+            text = "".join(md.plain(b["inlines"]) for b in blocks if b["type"] == "paragraph")
+            if "没有新约定" not in text:
+                self.error("跨模块约定", "逐条列出（每条引用两个不同文件），或只写「没有新约定」")
+            return
+        items = [item for block in lists for item in block["items"]]
+        for index, item in enumerate(items, 1):
+            files = {t[1] for t in _item_tokens(item) if t[0] == "cite"}
+            if len(files) < 2:
+                self.error("跨模块约定 第 %d 条" % index, "要引用两个不同文件里的代码，证明不止一个模块在用")
+
+    def check_sections(self, titles, expected=SECTIONS, label="六节"):
+        for name in expected:
             if name not in titles:
                 self.error("结构", "缺少「%s」一节（二级标题）" % name)
-        present = [t for t in titles if t in SECTIONS]
-        if present != [s for s in SECTIONS if s in present]:
-            self.error("结构", "六节的顺序应为 %s，现在是 %s" % ("、".join(SECTIONS), "、".join(present)))
+        present = [t for t in titles if t in expected]
+        if present != [s for s in expected if s in present]:
+            self.error("结构", "%s的顺序应为 %s，现在是 %s" % (label, "、".join(expected), "、".join(present)))
         for title in titles:
-            if title not in SECTIONS:
-                self.warn("结构", "多出一节「%s」：页面会照样显示，但不在固定的六问里" % title)
+            if title not in expected:
+                self.warn("结构", "多出一节「%s」：页面会照样显示，但不在固定的%s里" % (title, "六问" if label == "六节" else label))
 
     def line_count(self, path):
         if path not in self._lines:
@@ -194,8 +271,9 @@ class Checker:
         allowed = [c["sha"] for c in self.facts["commits"]]
         rng = self.facts["range"]
         allowed += [s for s in (rng["base"], rng["head"], self.facts["project"]["head"]) if s]
-        if rng.get("basis"):
-            allowed += rng["basis"].get("laterModuleCommits", []) + rng["basis"].get("laterCodeOnlyCommits", [])
+        bases = [rng.get("basis")] + [(m.get("range") or {}).get("basis") for m in (self.facts.get("milestone") or {}).get("modules", [])]
+        for basis in filter(None, bases):
+            allowed += basis.get("laterModuleCommits", []) + basis.get("laterCodeOnlyCommits", [])
         marker = (self.facts.get("module") or {}).get("spec", {}).get("marker") or ""
         texts = [t[1] for kind in ("text", "code", "bold") for t in md.tokens_of(self.blocks, kind)]
         for text in texts:

@@ -204,3 +204,96 @@ class RangeOnlyTest(CheckCase):
         source = source.replace("| AC | 证据 |\n|---|---|\n", "改动目的 [[src/a.py:L1]]。\n")
         code, errors, _ = self.check(source)
         self.assertEqual((code, errors), (0, []))
+
+
+MILESTONE_GOOD = """# M1 里程碑讲解
+
+**一句话**：alpha 跑、beta 看。
+
+## 这一站做成了什么
+
+| 用法 | 证据 |
+|---|---|
+| U1 跑一次 | [[src/alpha/main.py:L1]] |
+| U2 看结果 | [[src/beta/main.py:L1]] |
+
+## 代码地图
+
+新增都在 `src/` 下，一个模块一个目录。
+
+## 沿典型用法走一遍
+
+1. alpha 先跑 [[src/alpha/main.py:L1]]。
+2. beta 读结果 [[src/beta/main.py:L1]]。
+3. 回头看 alpha 的验收标准 [[spec/alpha.md:L1-L5]]。
+
+## 跨模块约定
+
+- 两个模块都只用 print 输出 [[src/alpha/main.py:L1]] [[src/beta/main.py:L1]]。
+
+## 各模块讲解
+
+（由脚本生成）
+
+## 需要你判断的
+
+- beta 只有一行 [[src/beta/main.py:L1]]。
+
+## 附录
+
+（由脚本生成）
+"""
+
+
+class MilestoneCheckCase(CheckCase):
+    def setUp(self):
+        RepoCase.setUp(self)
+        import test_milestone
+        test_milestone.MilestoneCase.build(self)
+        self.facts_path = os.path.join(self.tmp.name, "facts.json")
+        with open(self.facts_path, "w", encoding="utf-8") as handle:
+            json.dump(self.facts("--milestone", "M1", "--offline"), handle, ensure_ascii=False)
+
+    module = __import__("test_milestone").MilestoneCase.module
+    parent = __import__("test_milestone").MilestoneCase.parent
+
+
+class MilestoneCheckTest(MilestoneCheckCase):
+    def test_good_milestone_page_passes(self):
+        self.assertEqual(self.check(MILESTONE_GOOD), (0, [], []))
+
+    def test_sections(self):
+        self.assertError(MILESTONE_GOOD.replace("## 跨模块约定", "## 别的"), "缺少「跨模块约定」")
+        swapped = MILESTONE_GOOD.replace("## 代码地图", "## TMP").replace("## 沿典型用法走一遍", "## 代码地图").replace("## TMP", "## 沿典型用法走一遍")
+        self.assertError(swapped, "顺序")
+
+    def test_usage_table(self):
+        self.assertError(MILESTONE_GOOD.replace("| U2 看结果 | [[src/beta/main.py:L1]] |\n", ""), "这一站做成了什么", "U2")
+        self.assertError(MILESTONE_GOOD.replace("| U2 看结果 | [[src/beta/main.py:L1]] |", "| U2 看结果 | 看了 |"), "U2", "证据")
+        self.assertError(MILESTONE_GOOD.split("| 用法")[0] + "## 代码地图" + MILESTONE_GOOD.split("## 代码地图")[1], "这一站做成了什么")
+
+    def test_walk(self):
+        two = MILESTONE_GOOD.replace("3. 回头看 alpha 的验收标准 [[spec/alpha.md:L1-L5]]。\n", "")
+        self.assertError(two, "沿典型用法走一遍", "3～10")
+        eleven = MILESTONE_GOOD.replace("3. 回头看", "".join("%d. alpha 第 %d 步 [[src/alpha/main.py:L1]]。\n" % (i, i) for i in range(3, 11)) + "11. 回头看")
+        self.assertError(eleven, "沿典型用法走一遍", "3～10")
+        self.assertError(MILESTONE_GOOD.replace("2. beta 读结果 [[src/beta/main.py:L1]]。", "2. beta 读结果。"), "沿典型用法走一遍 第 2 步", "引用")
+        self.assertError(MILESTONE_GOOD.replace("2. beta 读结果", "2. 读结果"), "沿典型用法走一遍 第 2 步", "模块")
+        self.assertError(MILESTONE_GOOD.replace("1. alpha 先跑", "- alpha 先跑"), "沿典型用法走一遍", "有序列表")
+
+    def test_conventions(self):
+        one = MILESTONE_GOOD.replace(" [[src/beta/main.py:L1]]。\n\n## 各模块", "。\n\n## 各模块")
+        self.assertError(one, "跨模块约定 第 1 条", "两个")
+        same = MILESTONE_GOOD.replace("[[src/alpha/main.py:L1]] [[src/beta/main.py:L1]]", "[[src/alpha/main.py:L1]] [[src/alpha/main.py]]")
+        self.assertError(same, "跨模块约定 第 1 条", "两个")
+        none = MILESTONE_GOOD.replace("- 两个模块都只用 print 输出 [[src/alpha/main.py:L1]] [[src/beta/main.py:L1]]。", "没有新约定。")
+        self.assertEqual(self.check(none), (0, [], []))
+
+    def test_generated_sections_warn_on_tables(self):
+        code, errors, warnings = self.check(MILESTONE_GOOD.replace("## 各模块讲解\n\n（由脚本生成）", "## 各模块讲解\n\n- alpha\n- beta"))
+        self.assertEqual((code, errors), (0, []))
+        self.assertTrue(any("各模块讲解" in w for w in warnings), warnings)
+
+    def test_module_commit_ids_allowed(self):
+        source = MILESTONE_GOOD.replace("beta 只有一行", "beta 的起点是 %s，只有一行" % self.beta[0][:8])
+        self.assertEqual(self.check(source), (0, [], []))
