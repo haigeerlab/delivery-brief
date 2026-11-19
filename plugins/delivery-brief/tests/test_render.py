@@ -95,6 +95,9 @@ class RenderTest(CheckCase):
         html = self.render()
         self.assertIn('href="%sspec/alpha.md#L1-L3"' % facts["links"]["base"], html)
         self.assertIn('href="%ssrc/a.py"' % facts["links"]["base"], html)
+        bracket = self.render(GOOD.replace("[[src/a.py]]", "[[`src/app/[[...slug]]/page.tsx`:L1]]"))
+        self.assertIn('href="%ssrc/app/%%5B%%5B...slug%%5D%%5D/page.tsx#L1-L1"' % facts["links"]["base"], bracket)
+        self.assertIn("<code>src/app/[[...slug]]/page.tsx:1</code>", bracket)
 
     def test_working_tree_mismatch_is_flagged(self):
         facts = self.load()

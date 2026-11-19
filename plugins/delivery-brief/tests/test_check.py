@@ -206,6 +206,26 @@ class RangeOnlyTest(CheckCase):
         self.assertEqual((code, errors), (0, []))
 
 
+class BracketPathCheckTest(RepoCase):
+    PATH = "src/app/[[...slug]]/page.tsx"
+
+    def test_bracket_path_checked_at_end_commit(self):
+        self.repo.write("README.md", "x\n")
+        base = self.repo.commit("init")
+        self.repo.write(self.PATH, "a\nb\nc\n")
+        head = self.repo.commit("add page")
+        facts_path = os.path.join(self.tmp.name, "facts.json")
+        with open(facts_path, "w", encoding="utf-8") as handle:
+            json.dump(self.facts("--range", "%s..%s" % (base, head), "--offline"), handle, ensure_ascii=False)
+        self.facts_path = facts_path
+        source = GOOD.replace("[[src/a.py]]", "[[`%s`:L2-L3]]" % self.PATH)
+        source = source.replace("| AC1 | [[src/a.py:L1]] |", "| AC1 | x |")
+        code, errors, _ = CheckCase.check(self, source)
+        self.assertFalse([e for e in errors if self.PATH in e], errors)
+        code, errors, _ = CheckCase.check(self, source.replace("L2-L3", "L2-L9"))
+        self.assertTrue(any(self.PATH in e and "行号" in e for e in errors), errors)
+
+
 MILESTONE_GOOD = """# M1 里程碑讲解
 
 **一句话**：alpha 跑、beta 看。

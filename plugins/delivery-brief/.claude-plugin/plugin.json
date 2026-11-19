@@ -1,6 +1,6 @@
 {
   "name": "delivery-brief",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "交付讲解：按需生成模块与里程碑讲解页（本机网页），几分钟看懂 AI 这次造了什么、怎么串起来、哪里要人判断。",
   "author": {
     "name": "haigeerlab"

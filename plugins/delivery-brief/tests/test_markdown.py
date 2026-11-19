@@ -138,6 +138,25 @@ class SectionsTest(unittest.TestCase):
         self.assertEqual([b["type"] for b in sections[1][1]], ["paragraph", "heading"])
 
 
+class QuotedCitationTest(unittest.TestCase):
+    PATH = "src/app/auth/sign-in/[[...sign-in]]/page.tsx"
+
+    def test_quoted_paths_may_contain_brackets(self):
+        tokens = md.inlines("见 [[`%s`:L10-L19]] 与 [[`%s`]]，再看 [[src/a.py:L3]]。" % (self.PATH, self.PATH))
+        cites = [t for t in tokens if t[0] == "cite"]
+        self.assertEqual(cites, [("cite", self.PATH, 10, 19), ("cite", self.PATH, None, None), ("cite", "src/a.py", 3, 3)])
+        self.assertEqual(md.plain([t for t in tokens if t[0] == "text"]), "见  与 ，再看 。")
+
+    def test_quoted_single_line_and_bad_range(self):
+        self.assertEqual(md.inlines("[[`a[1].txt`:L4]]"), [("cite", "a[1].txt", 4, 4)])
+        self.assertEqual(md.inlines("[[`a[1].txt`:L4-L2]]")[0][0], "badcite")
+
+    def test_unquoted_form_unchanged(self):
+        self.assertEqual(md.inlines("[[src/a.py:L1-L2]]"), [("cite", "src/a.py", 1, 2)])
+        self.assertEqual(md.inlines("[[%s:L1]]" % self.PATH)[0][0], "badcite")
+        self.assertEqual(md.inlines("`[[x]]`"), [("code", "[[x]]")])
+
+
 class ScreenshotBlockTest(unittest.TestCase):
     def test_screenshot_blocks_found_with_title_path_and_line(self):
         source = "## 产出清单\n\n```screenshot 登录页\n/login\n```\n\n<details>\n<summary>更多</summary>\n\n```screenshot 看板\n/dashboard?x=1\n```\n\n</details>\n"

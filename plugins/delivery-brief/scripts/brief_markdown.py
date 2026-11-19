@@ -4,6 +4,7 @@ Blocks: heading, paragraph, list (two levels), table, code (lang "mermaid" for d
 Inline tokens: ("text", s), ("code", s), ("bold", s), ("link", text, url), ("cite", path, start, end),
 ("outref", "O1"), ("badcite", raw). A real-run output is a code block ```output O1 whose text starts with the
 command line ("$ ..."); [[out:O1]] refers to it. A citation is [[path]], [[path:L12]] or [[path:L12-L30]]; inside code it is plain text.
+A path containing [ or ] (Next.js routes like [[...slug]]) is written in backticks: [[`path`:L12-L30]].
 Anything else is kept verbatim as an `unsupported` block so the checker can name it and the page still shows it.
 """
 import re
@@ -11,7 +12,7 @@ import re
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 FENCE = re.compile(r"^(```|~~~)\s*([\w-]*)\s*(.*?)\s*$")
 LIST_ITEM = re.compile(r"^( *)([-*+]|\d+[.)])\s+(.*)$")
-INLINE = re.compile(r"`([^`]+)`|\[\[(.*?)\]\]|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*")
+INLINE = re.compile(r"\[\[`([^`\s]+)`(?::L(\d+)(?:-L(\d+))?)?\]\]|`([^`]+)`|\[\[(.*?)\]\]|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*")
 OUTREF = re.compile(r"^out:(O\d+)$")
 CITE = re.compile(r"^([^\s:\[\]]+)(?::L(\d+)(?:-L(\d+))?)?$")
 PIPE = "\x00PIPE\x00"
@@ -22,8 +23,15 @@ def inlines(text):
     for match in INLINE.finditer(text):
         if match.start() > pos:
             tokens.append(("text", text[pos:match.start()]))
-        code, cite, link_text, link_url, bold = match.groups()
-        if code is not None:
+        quoted, q_start, q_end, code, cite, link_text, link_url, bold = match.groups()
+        if quoted is not None:
+            start = int(q_start) if q_start else None
+            end = int(q_end) if q_end else start
+            if start is None or 1 <= start <= end:
+                tokens.append(("cite", quoted, start, end))
+            else:
+                tokens.append(("badcite", match.group(0)))
+        elif code is not None:
             tokens.append(("code", code))
         elif cite is not None and OUTREF.match(cite):
             tokens.append(("outref", OUTREF.match(cite).group(1)))

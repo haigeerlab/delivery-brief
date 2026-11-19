@@ -109,7 +109,8 @@ class RulesTemplateTest(unittest.TestCase):
             self.assertIn("### %s" % name, RULES)
 
     def test_rules_cover_evidence_and_charts(self):
-        for phrase in ("证据硬规则", "不照抄 Spec", "选图规则", "一图一问", "标题写结论", "读取策略", "[[out:O1]]"):
+        for phrase in ("证据硬规则", "不照抄 Spec", "选图规则", "一图一问", "标题写结论", "读取策略", "[[out:O1]]",
+                       "[[`src/app/[[...slug]]/page.tsx`:L10-L19]]"):
             self.assertIn(phrase, RULES)
 
 

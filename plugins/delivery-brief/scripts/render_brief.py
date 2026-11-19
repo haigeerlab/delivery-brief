@@ -170,12 +170,13 @@ class Renderer:
 
     def cite(self, path, start, end):
         label = path if start is None else "%s:%d%s" % (path, start, "" if end == start else "-%d" % end)
+        url_path = path.replace("[", "%5B").replace("]", "%5D")  # Next.js [[...slug]] routes
         if self.links["kind"] == "github":
-            href = self.links["base"] + path
+            href = self.links["base"] + url_path
             if start is not None:
                 href += self.links["lineFormat"].format(start=start, end=end)
             return '<a href="%s"><code>%s</code></a>' % (esc(href), esc(label))
-        absolute = self.links["base"] + path
+        absolute = self.links["base"] + url_path
         vscode = "vscode://file/%s%s" % (absolute, "" if start is None else ":%d" % start)
         return ('<a href="%s"><code>%s</code></a><a class="filelink" href="%s" title="用默认程序打开文件">↗</a>'
                 % (esc(vscode), esc(label), esc("file://" + absolute)))
