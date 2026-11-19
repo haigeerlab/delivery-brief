@@ -20,7 +20,7 @@ def help_text(script):
 
 class CommandOptionsTest(unittest.TestCase):
     def test_every_option_used_exists(self):
-        for script in ("brief_facts.py", "check_brief.py", "render_brief.py"):
+        for script in ("brief_facts.py", "check_brief.py", "render_brief.py", "crosscheck_material.py"):
             lines = [line for line in COMMAND.splitlines() if script in line]
             self.assertTrue(lines, "%s is not used in commands/brief.md" % script)
             usage = help_text(script)
@@ -37,6 +37,26 @@ class CommandOptionsTest(unittest.TestCase):
         self.assertIn("`size.diffBytes` 超过 200000", COMMAND)
         self.assertIn("--no-open", COMMAND)
         self.assertIn("git -C \"$PROJECT\" archive", COMMAND)
+
+
+class CrossCheckDocsTest(unittest.TestCase):
+    PROMPT = (PLUGIN / "references" / "cross-check-prompt.md").read_text(encoding="utf-8")
+
+    def test_prompt_has_only_the_two_placeholders(self):
+        self.assertEqual(sorted(set(re.findall(r"\{\{(\w+)\}\}", self.PROMPT))), ["project", "subject"])
+
+    def test_prompt_carries_no_conclusions_or_hints(self):
+        for phrase in ("可能有问题", "重点看", "我们认为", "已核实", "已知问题", "样张"):
+            self.assertNotIn(phrase, self.PROMPT)
+        self.assertIn("不要给代码质量打分", self.PROMPT)
+
+    def test_command_flow(self):
+        for phrase in ("delegate:review", "--cross-check", "crosscheck_material.py", "confirmed", "rejected", "unverified",
+                       "不加任何别的话", "退出 0 不等于核对通过", "cross-check-prompt.md"):
+            self.assertIn(phrase, COMMAND)
+        render_line = [l for l in COMMAND.splitlines() if "--cross-check \"$OUT/$NAME.crosscheck.json\"" in l]
+        self.assertTrue(render_line)
+        self.assertIn("--cross-check", help_text("render_brief.py"))
 
 
 class RulesTemplateTest(unittest.TestCase):
