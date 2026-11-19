@@ -166,3 +166,34 @@ HTML 排版由脚本做，不花 token。用户选定只做「减少轮数」（
 
 ### Checkpoint 5（gate）：修订验收与 0.3.2 发版授权
 
+## 返工（0.3.3）：准备块只打印 facts 摘要
+
+0.3.2 实测（Task 12）：M1 的 facts 有 43253 字节（其中每个提交附带的文件清单约 2.1 万字符），准备块把讲解规则（约 1.5 万字符）和整份 facts
+一起打印，超过单次输出上限被存成文件，模型又分两次 Read 读回，多了约两轮。这在 Spec 假设 10「少跑几轮」的已批准范围内，按「返工与小模块」在本模块返工，不重新交审。
+
+### Task 13：facts 摘要脚本
+
+- 文件：`scripts/facts_summary.py`（新）、`tests/test_facts_summary.py`（新）。
+- 做法：`facts_summary.py --facts <facts.json>` 打印摘要：`commits` 压成每条一行「短号 日期 标题」（去掉每个提交的文件清单），`files` 压成每条一行
+  「状态 +增 −删 路径」，`codeMap` 压成每组一行，去掉 `milestone.modules[].range.basis`；其他字段原样输出；末尾注明完整 facts 的路径与取字段的办法。
+  读不了 facts 退出 2，一行中文。
+- 用例：模块、提交段、里程碑三种 facts 的摘要都含全部顶层字段；提交与文件按行输出且条数对；不含逐提交文件清单与模块依据；里程碑摘要明显变短；坏输入退出 2。
+- 验证：先红后绿。
+
+### Task 14：准备块改用摘要
+
+- 文件：`commands/brief.md`、`tests/test_rules_doc.py`。
+- 做法：讲解规则改由 Read 读，和准备块放在同一条消息里（两个结果各算各的上限）；准备块打印 `facts_summary.py` 的输出，不再 `cat` 整份 facts。
+- 用例：准备块用 `facts_summary.py`、不再 `cat` facts 全文；命令文件写明规则用 Read 读、与准备块同一条消息；`--facts` 在脚本 `--help` 里。
+- 验证：先红后绿；用本仓库 M1 的真实 facts 量一次「规则 + 摘要」各自的长度。
+
+### Task 15：版本 0.3.3 与 README
+
+### Checkpoint 6（gate）：本机升级插件
+
+### Task 16：M1 重跑一次
+
+- 你在新会话运行 `/delivery-brief:brief --milestone M1 --project ~/Documents/haigeerlab/delivery-brief`；我用 `dev/run_cost.py` 对照 0.3.2 的 18 轮，看准备块的输出有没有再被存成文件。
+
+### Checkpoint 7（gate）：返工验收与 0.3.3 发版授权
+
