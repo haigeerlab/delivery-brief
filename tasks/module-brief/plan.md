@@ -110,3 +110,18 @@
 - Dependencies: 无
 - Configs: 无
 - Patches: 无
+
+## 返工（0.3.1）：路径含方括号的引用
+
+2026-11-19 ui-screenshots 实测 Next.js 项目时发现：引用写法 `[[路径…]]` 不允许路径里有 `[`、`]`，所以 `src/app/auth/sign-in/[[...sign-in]]/page.tsx`
+这类可选捕获路由的文件没法引用（`brief_markdown.CITE`）。这是本模块已批准范围里的缺口（讲解要能引用范围内的任何文件），按 spec-guard「返工与小模块」规则在本模块返工，不开新模块、不重新交审。
+
+### Task 8：反引号括起的引用路径
+
+- 文件：`scripts/brief_markdown.py`、`scripts/render_brief.py`、`references/brief-rules.md`、`tests/test_markdown.py`、`tests/test_check.py`、`tests/test_render.py`。
+- 做法：新增写法 ``[[`路径`]]``、``[[`路径`:L12]]``、``[[`路径`:L12-L30]]``，反引号里的路径可以含 `[`、`]` 与空格以外的字符；不加反引号的旧写法不变。
+  渲染链接时把路径里的 `[`、`]` 编码成 `%5B`、`%5D`，其他路径的链接不变。
+- 用例：解析出路径与行号（含和旧写法混在一行）；检查脚本在终点提交上核对含方括号的文件与行号（存在通过、行号超出报错）；渲染出的链接已编码；旧写法的解析与渲染不变。
+- 验证：先红后绿；用改前改后的渲染脚本渲染真实模块讲解逐字比对；对 next-shadcn 那段提交的讲解改用新写法引用 `page.tsx`，检查通过。
+
+### Checkpoint 3（gate）：返工验收与 0.3.1 发版授权
