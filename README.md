@@ -19,7 +19,7 @@ AI 写的代码越来越多，人看代码的时间越来越少：测试都过�
 ## 安装
 
 需要 Claude Code、`git`、`python3`（3.9 及以上，只用标准库）。`gh` 可选（用来判断能不能生成 GitHub 行号链接）；
-[delegate](https://github.com/haigeerlab/delegate-plugin) 插件可选（`--cross-check` 要用）。
+[delegate](https://github.com/haigeerlab/delegate-plugin) 插件可选（`--cross-check` 要用）；Google Chrome 或 Chromium 可选（给界面截图要用）。
 
 ```text
 /plugin marketplace add haigeerlab/delivery-brief
@@ -37,12 +37,26 @@ AI 写的代码越来越多，人看代码的时间越来越少：测试都过�
 |---|---|
 | `--project <dir>` | 被讲解的项目，缺省为当前目录所在的 git 仓库 |
 | `--no-open` | 生成后不自动用浏览器打开 |
+| `--no-screenshots` | 有界面改动也不截图（不装依赖、不起服务），截图处写「截图未生成」 |
+| `--base-url <地址>` | 用你已经在跑的开发服务器截图，不另起；截的是你工作区的样子，页面上会注明未核对与终点提交一致 |
 | `--cross-check` | 讲解生成后，经 delegate 交给另一个模型只读核对：说法与代码是否相符、有没有漏掉的事实；每条发现回到代码核实后再改讲解，附录留核对记录。另花约 10～25 万输入 token（delegate 默认后端的额度） |
 
 生成前会先告诉你范围、来源和规模；diff 超过约 5 万 token 时先停下问你。
 
-**输出位置**：`~/.claude/delivery-brief/<项目目录名>/<模块 id>.html`，旁边是讲解源文件（`.md`）与事实（`.facts.json`）。
+**输出位置**：`~/.claude/delivery-brief/<项目目录名>/<模块 id>.html`，旁边是讲解源文件（`.md`）、事实（`.facts.json`），有截图时还有 `<模块 id>.shots/`。
 **不写被讲解项目的任何文件**；需要实跑测试时，只在 `git archive` 导出的临时目录里跑。讲解页不需要维护，随时可以重生成，同名会覆盖。
+
+## 界面截图
+
+讲解里有界面的页面时，命令会在产出清单的这些页面旁边各附一张截图（桌面宽度一屏，1280×800，最多 8 张）：
+
+- 把终点提交 `git archive` 导出到临时目录，按锁文件装依赖（`pnpm install --frozen-lockfile`、`npm ci` 等，要联网），
+  按 `.claude/launch.json`、`package.json` 的 `dev`／`start`、README 的顺序找启动方式，在空闲端口上起开发服务器；
+- 用本机 Chrome 的无界面模式截图，每张都由 agent 看过：截到登录页、报错页、空白页时如实写「截图未生成：原因」；
+- **不替你登录，不输入任何账号密码，也不点击页面**；不复制 `.env` 等不在版本库里的文件（要复制会先问你）；
+- 结束时停掉服务、删掉临时目录。一般多花一到几分钟（实测一个 Next.js 项目：装依赖 11 秒、起服务 12 秒、截两张 5 秒）。
+
+截图放在讲解页旁边的 `<名字>.shots/` 目录里，和讲解页一起移动才能显示。
 
 ## 模块范围怎么来的
 
@@ -57,9 +71,12 @@ AI 写的代码越来越多，人看代码的时间越来越少：测试都过�
 - 不替代独立的代码审查（`--cross-check` 核对的是讲解是否属实，不是代码好不好）。
 - 讲解页不进被讲解项目的仓库。
 
-## 0.1.1 修了什么
+## 版本记录
 
-0.1.0 用 `--cross-check` 给 brief-facts 自己生成讲解时查出的问题，0.1.1 已修：
+**0.2.0**：有界面改动时自动截图（见「界面截图」），新增 `--no-screenshots`、`--base-url`；命令里的删除一律防空变量，避免被 Claude Code 拦下。
+已知局限：路径里含 `[[`（如 Next.js 的可选捕获路由目录 `[[...slug]]`）的文件没法写成引用，讲解里只能写成代码文字。
+
+**0.1.1**：0.1.0 用 `--cross-check` 给 brief-facts 自己生成讲解时查出的问题：
 
 - 仓库里有不是 UTF-8 的文件路径时，不再抛 Python 堆栈：照常收集，不能识别的字节显示成 �，并在页头提示里列出。
 - 查终点提交是否在远端时，分开报「不在远端」和「gh 查询失败（网络、权限、限流）」。
@@ -77,7 +94,7 @@ claude plugin validate .
 流程在 [`plugins/delivery-brief/commands/brief.md`](plugins/delivery-brief/commands/brief.md)。
 本仓库用 spec-guard 开发，需求与计划在 `spec/` 和 `tasks/`。
 
-后续计划：有界面改动时自动截图（ui-screenshots）、里程碑讲解页（milestone-brief）。
+后续计划：里程碑讲解页（milestone-brief）。
 
 ## 许可证
 
